@@ -7,21 +7,18 @@ Full project specifications are located in the `documentation` directory.
 
 The team has been examining the role of Semantics and Internal Latent Spaces in Natural/Spoken Language Understanding.
 
-This project will examine the efficacy of using a continuious latent space for a Multi-Agent AI System.
+This project will examine the efficacy using models fine tuned to a shared semantic space for an NLP task. The overall architecure will rely on Encode/Decoder to translate text modalidy data into a modality models trained to the shared semantic space can consume and output.
+
+We will then compare model performance between text modality and latent-space modality.
+- MiniGPT
+- Other Open-Weight Models
 
 Key benchmarks we should seek to evaluate are:
-- System Modularity:
-    - How well do disprite models learn the shared latent space?
-- System Performance:
     - Task completion and performance.
-    - Overall system latency?
-    - Overall system uncertanty?
-    - Task-specific latency?
-        - Internal Query Opperations (RAG on internal vector database)
-        - MCP Tool-Use opperations
-- Resources Utalization:
-    - What is the impact on State/Context Size?
-    - Number of reasoning steps required.
+        - F1 score, accuracy, ect
+    - Infrence latency
+    - Model uncertanty
+    - Token utilization / infrence cost.
 
 ##### Target Task
 - Multi-Modal Sentement Analysis: Take audio and textual data from interviews and generate a sinopsis/sentement analysis of the content. eg: Celeberity Interview.
