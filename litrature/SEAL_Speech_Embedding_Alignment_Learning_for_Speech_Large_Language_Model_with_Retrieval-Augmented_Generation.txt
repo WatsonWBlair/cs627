@@ -1,0 +1,21 @@
+- Paper explores using Speech-Text embeddings for RAG opperations in conjunction with Speech Large Language Model
+    - Speach-to-Document matching
+
+- employed contrastive learning to fine tune models, using known text-embedder to fine-tune an ASR model to output semantic embeddings instead of text.
+
+- Training was acomplished in two phases, both are CRITICAL:
+    - Speech-Text alignment Pre-Training:
+        - ensures Speech encoder outputs to the same latent space as Text encoders.
+            - note that this is not a joint space, they are strictly aligning speech to the text encoders space.
+    - Speech-Text Retrieval Fine-Tuning:
+        - Contrastive training to ensure correct document retrieval
+
+- A multi-modal adaptation module was used to help bridge the modularity gap between speech and text, inspired by LLaVA(Vision/Text multi-modal assistant)
+    - consists of Temporal Convoluion layer for dimension reduction
+    - Multi-Layer Perceptron for feature projection.
+
+- Benchmark was MTEB - Massive Text Embedding Benchmark [https://huggingface.co/blog/mteb]
+- Base Models:
+    - Text: piccolo-large-zh-v2 **Note that the model is the chineese variant
+    - Speech: Whisper-large-v3
+

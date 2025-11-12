@@ -1,0 +1,19 @@
+- Integrates dialogue history into an E2E SLU system.
+
+- Examines 3 types of vecotrs:
+    - Supervised-All: h-vectors bag-of-concepts populated by the expected response of the user based on the system's last output.
+    - Supervised-Freq: h-vectors bag-of-concepts populated by the global set of expected user semantic inputs based on the task domain.
+    - Unsupervised
+
+- Domain was specifically for french language tasks of calling into a hotel.
+
+- There is a non-liner relationship between audio signals and the concepts they represent, the relationship and ordering of semantic tokens / concepts is critical to overall utterances.
+
+- Paper developed their own Recurrent Neural Network architecure inspired by Deep Speech 2 [https://nvidia.github.io/OpenSeq2Seq/html/speech-recognition/deepspeech2.html]
+
+- Finding was that the systems previous output was the best predictor of user utterances
+    - basically being able to anticipate the kinds of things the user is about to say is really usefull:
+        - 'What is your confirmation number?' indicates that the user is about to say a string of letters and numbers
+        - 'When do you want to check in?' indicates that the user is about to say a date.
+
+PERSONAL NOTE: using historical embeddings to drive LoRA selection would be interesting.

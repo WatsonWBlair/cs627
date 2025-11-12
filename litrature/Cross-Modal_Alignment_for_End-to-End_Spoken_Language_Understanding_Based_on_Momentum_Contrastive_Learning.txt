@@ -1,0 +1,55 @@
+E2E SLU extract semantic intent directly from an input speach
+
+There is very little semantically labeled speech data.
+ - this makes training difficult
+
+Recent Multi-Modal Appraches have demonstrated that aligning speach and text embeddings is effective.
+
+Datasets Used:
+    - Fluent Speech Command
+    - SmartLights datasets
+
+Training Methodology:
+    - Contrastive Learning (with momentum)
+
+Ways to resolve lack of Semantically Labeled Speech Data:
+    - Data Augmentation
+        - eg: synthetic voice reading transcripts
+        - This adds value, but not much. see paper on voice synthsis
+    - Pre-Training ASR modules on additonal, domain specific, speech data.
+        - this does not generalize well
+    - Utilize transcribed speech as training data
+        - this failes to capture semantic features not represented in text
+            - discards tone of voice, cadence, ect...
+
+A key point is that cross/multi-modal latent spaces are not represented perfictly by any one of it's constituant modalities
+    - the paper uses momentum contrast learning to enable models to learn from imperfectly matched modalities.
+
+The paper showed that:
+    - Aligning text and speech embeddings via momentum contrast loss is effective for E2E SLU
+    - Momentum Distillation allowed the model to learn from imperfectly matched modalities.
+    - Proposed Method improved performance on benchmark datasets.
+
+Contrastive Learning:
+    - contrastive loss measures the similarity of sample pairs in an embedded space.
+    - Two limitations:
+        - Batch Size
+        - Coding Consistancy
+
+
+Knowledge Distillation:
+    - also known as teacher-student training.
+    - uses pre-trained or more complex model to train a student model.
+    - Momentum Distillation uses a moving-average model as a teacher to generate soft targets for the student model.
+
+
+Proposed Framework:
+    - Modules:
+        - Speach Encoder: Conformer [https://ieeexplore.ieee.org/document/11168953]
+        - Text Encoder: Bert [https://arxiv.org/abs/1910.03771]
+        - Cross-Modal Momentum Contrast Learning: cosine distance is used to compute the similarity of speech-text embeddings using infoNCE loss
+        - Momentum Distillation: evolving teacher model obtained by averaging the model parameter. [https://arxiv.org/abs/2107.07651]
+        - Cross-Modal Shared Classification Layer: shared intent classification layer is fully connected to embedding output layers. 
+
+Trained and Evalueated using Fluent Speech Commands (largest English dataset for training E2E SLU) and SmartLights
+    - Both consist of spoken commands consisting of three slots: action, object, and location.

@@ -1,0 +1,35 @@
+- SLU is usually acomplished via a cascade:
+    - Voice to Text Encoder (Automatic Speech Recognition)
+    - Natural Language Understanding
+
+- System - Human communication is usutally increadably directed and task-oriented.
+
+- SLU focuses on transitioning unstrucutred speech into a structured format that allows downstreem systems execute actions.
+
+- Multi-Step architecures introduce latency and translation errors.
+    - this would seem to contridict our approach of requiring a modality->latent-space translation before executing infrence tasks
+    - however, all LLMs include this step within their architecures
+    - changing to a latent space core modality for modelxmodel communciation technically removes a lot of translation layers.
+
+- Paper explores a set of recurrent architecures for intent classification
+    - intent is defined as a strucutred output that has three slots
+        - Action
+        - Object
+        - Location
+    - Architecures are a hyperparameter tuning exercise across 3 layers:
+        - RNN-stack Layer
+            - 1-3 layers
+        - Representation Layer
+            - 0-3 LSTM / GRU layers
+        - Soft-Max (output) Layer
+            - Conditional or Non-Conditional
+    - Best Performer:
+        - RNN-Stack: 3 LSTM Layers 
+        - Representation: tripple-LSTM
+        - Soft-Max: Conditional
+            - conditionality here means that the superset of available outputs of a slot is conditional upon the value of another slot
+                - eg: Only certian Objects are valid for a given Action
+
+- Because the model was trained from scratch, it did not perform well on unseen words.
+    - Using pre-trained base models allows for a broader context and higher level of adaptability to unseen words, but less controll of internal architecure.
+
