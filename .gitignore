@@ -211,3 +211,5 @@ __marimo__/
 .github/instructions/codacy.instructions.md
 /.codacy
 *.DS_Store
+/src/Chatbot/data/save
+/src/Chatbot/data/movie-corpus
