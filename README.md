@@ -1,8 +1,21 @@
 # cs627
 
-This repo is to coordinate work for Project 5 of CS627: Artificial Intelegance.
+This repo is to coordinate work for Project 5 of CS627: Artificial Intelligence.
 
-### Project Overview:
+## SETUP
+This project uses Meta's SONAR which relies on a MacOS (via a dependency on fairseq2)
+
+Note that if you are using a system that fairseq2 does not provide a build for, you will need to compile it from source. See [this guide](https://github.com/facebookresearch/fairseq2/blob/main/INSTALL_FROM_SOURCE.md) for instructions on how to do this.
+
+It is expected that you are using Conda to manage your local Python environment.
+
+Execute the following command to ensure perquisites are installed:
+```
+sudo conda install -c conda-forge libsndfile sonar-space fairseq2
+```
+
+
+## Project Overview:
 Full project specifications are located in the `documentation` directory.
 
 The team has been examining the role of Semantics and Internal Latent Spaces in Natural/Spoken Language Understanding.
@@ -54,7 +67,11 @@ TBD
 - Chain of thought evaluation of latent space modality.
 - Diffrent modalities for encoding/decoding (audio, image)
 
-## Division Of Labor
-- Xavier: Leading Paper-Writing Crew
-    - Venkatesh
-- Watson: Leading Implemetation Crew
+#### Division Of Labor
+Paper Authorship
+- Xavier
+- Kumar
+#### Implementation
+- Watson: Training Architecture and Infrastructure
+- Ram: Encoder/Decoder
+- Swatej: Data Wrangling and Preparation
