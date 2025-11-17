@@ -67,11 +67,12 @@ TBD
 - Chain of thought evaluation of latent space modality.
 - Diffrent modalities for encoding/decoding (audio, image)
 
-#### Division Of Labor
-Paper Authorship
-- Xavier
-- Kumar
-#### Implementation
-- Watson: Training Architecture and Infrastructure
-- Ram: Encoder/Decoder
-- Swatej: Data Wrangling and Preparation
+## Division Of Labor
+##### Paper Authorship
+- Xavier: Lead author
+- Kumar: Problem Statement
+
+##### Implementation
+- Watson: Training Architecture and Evaluation Utilities
+- Ram: Encoder / Decoder Implementation
+- Swatej: Data Wrangling and Pre-Processing
