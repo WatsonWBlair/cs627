@@ -55,6 +55,11 @@ TBD
 - Diffrent modalities for encoding/decoding (audio, image)
 
 ## Division Of Labor
-- Xavier: Leading Paper-Writing Crew
-    - Venkatesh
-- Watson: Leading Implemetation Crew
+##### Paper Authorship
+- Xavier: Lead author
+- Kumar: Problem Statement
+
+##### Implementation
+- Watson: Training Architecture and Evaluation Utilities
+- Ram: Encoder / Decoder Implementation
+- Swatej: Data Wrangling and Pre-Processing
