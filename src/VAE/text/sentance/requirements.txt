@@ -1,4 +1,0 @@
-numpy~=1.18.5
-nltk==3.5
-torch==1.5.0
-tensorboardX==2.0
