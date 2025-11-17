@@ -1,0 +1,1 @@
+This directory holds models that encode a given modality into Semantic-Vectors.
