@@ -11,7 +11,17 @@ class SONAR():
             device=DEVICE,
             dtype=torch.float16)
 
+    def forward(self, input):
+        pass
 
-    def encode(self, semantic_vectors: list[str]) -> list[int]:
-        reconstructed = self.text2vec_model.predict(semantic_vectors, source_lang="eng_Latn")
+    def encode(self, text: str) -> list[int]:
+        reconstructed = self.text2vec_model.predict(text, source_lang="eng_Latn")
         return reconstructed
+    
+    def batchEncode(self, inputs: list[str]):
+        results = [self.encode(input) for input in inputs]
+        return results
+
+    def transform(self, text: str) -> list[int]:
+        return self.encode(text)
+

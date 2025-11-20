@@ -11,6 +11,6 @@ class SONAR():
             device=DEVICE,
             dtype=torch.float16)
 
-    def decode(self, input_text: list[str]):
+    def decode(self, input_text: str):
         semantic_vectors = self.vec2text_model.predict(input_text, source_lang="eng_Latn")
         return semantic_vectors
