@@ -215,3 +215,5 @@ __marimo__/
 /src/Chatbot/data/movie-corpus
 /src/Inference/Chatbot/data/save
 /src/Inference/Chatbot/data/movie-corpus
+/PyTorch_Tuorials/data
+*.pth

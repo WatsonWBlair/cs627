@@ -9,7 +9,7 @@ This file contains any custom trainers for aligning Encoders to the shared seman
 """
 
 # TODO: Add class documentation
-class Decoder(Trainer):
+class Contrast(Trainer):
     def reconstruction_loss(self, original, reconstructed):
         # Calculate how simmilar/dissimaler original and reconstructed are
         # Consider SSIM and DICE

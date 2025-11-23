@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from transformers import Trainer
+from torch.nn import CosineEmbeddingLoss
 import torch.nn.functional as F
 from typing import Optional, Tuple
 
@@ -11,6 +12,9 @@ This file contains any custom trainers for aligning Encoders to the shared seman
 # TODO: Add class documentation and make loss more neuanced.
 class Contrast(Trainer):
     def compute_loss(self, model: nn.Module, inputs: list[Tuple[str, torch.Tensor, torch.Tensor]], return_outputs: bool = False, num_items_in_batch: Optional[torch.Tensor] = None):
+        # Drive this off of https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=10448143
+        # Cross Modal Momentum contrastive Learning
+        
         margin = .1
         
         query = inputs[:][:1] # First item from every tuple
