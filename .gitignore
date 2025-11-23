@@ -213,3 +213,5 @@ __marimo__/
 *.DS_Store
 /src/Chatbot/data/save
 /src/Chatbot/data/movie-corpus
+/src/Inference/Chatbot/data/save
+/src/Inference/Chatbot/data/movie-corpus
