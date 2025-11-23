@@ -5,11 +5,11 @@ from utils.Adapter import Adapter
 BASE_MODEL = "facebook/bart-base"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-class SEED():
-    def __init__(self, use_saved: bool, base_model: str = BASE_MODEL, max_length: int = 1024) -> None:
-        super(SEED, self).__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(base_model, max_length=max_length)
-        adapterModel = Adapter(max_length,200,max_length,pre=base_model) # TODO: Load from checkpoint using pretrained arg
+class Text_to_Vec(torch.nn.Module):
+    def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
+        super(Text_to_Vec, self).__init__()
+        self.tokenizer = BertTokenizer.from_pretrained(base_model, max_length=token_length)
+        adapterModel = Adapter(input_size=token_length, hidden_size=200,output_size=token_length,hidden_layers=2)
         self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(base_model, adapterModel)
 
        

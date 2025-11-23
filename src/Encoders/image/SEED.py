@@ -16,11 +16,11 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class SEED():
-    def __init__(self, use_saved: bool, base_model: str = BASE_MODEL, max_length: int = 1024) -> None:
+    def __init__(self, use_saved: bool, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(SEED, self).__init__()
-        adapterModel = Adapter(max_length,200,max_length) # TODO: Load from checkpoint using pretrained arg
+        adapterModel = Adapter(input_size=token_length, hidden_size=200,output_size=token_length,hidden_layers=2)
         self.model = VisionEncoderDecoderModel.from_pretrained(BASE_MODEL, adapterModel)
-        self.tokenizer = ViTImageProcessor.from_pretrained(BASE_MODEL) #image_processor
+        self.tokenizer = ViTImageProcessor.from_pretrained(BASE_MODEL, max_length=token_length) #image_processor
 
        
     def forward(self, input_img: tensor.Tensor, *, max_length: int = 1024, device: str = DEVICE):

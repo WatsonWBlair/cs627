@@ -1,2 +1,11 @@
 fairseq2
 sonar-space
+tensor
+transformers
+mteb
+sentence-transformers
+transformers
+datasets
+evaluate
+accelerate
+trl

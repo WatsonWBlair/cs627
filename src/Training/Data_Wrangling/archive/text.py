@@ -1,5 +1,5 @@
 from datasets import load_dataset, load_from_disk
-from Encoders.text.SEED import SEED
+from Encoders.text_2_vec import Text_to_Vec
 
 # Loads dataset from local resources.
 def load_local(path: str):
@@ -14,7 +14,7 @@ def load_remote_MTEB():
     except Exception as e:
         print(f"\nCould not load mteb/stsbenchmark-sts dataset: {e}")
 
-    encoder = SEED()
+    encoder = Text_to_Vec()
     def encode(examples):
         examples['sentence2'] = encoder.batch(examples['sentence2'])
         return examples 
