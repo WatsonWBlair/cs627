@@ -1,0 +1,92 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "stsbenchmark-sts",
+  "dataset_size": 1595597,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/mteb/stsbenchmark-sts@d8fc392db601d4885fa9113da0f5a65e65c11c70/train.jsonl.gz": {
+      "num_bytes": 277970,
+      "checksum": null
+    },
+    "hf://datasets/mteb/stsbenchmark-sts@d8fc392db601d4885fa9113da0f5a65e65c11c70/validation.jsonl.gz": {
+      "num_bytes": 86431,
+      "checksum": null
+    },
+    "hf://datasets/mteb/stsbenchmark-sts@d8fc392db601d4885fa9113da0f5a65e65c11c70/test.jsonl.gz": {
+      "num_bytes": 63205,
+      "checksum": null
+    }
+  },
+  "download_size": 427606,
+  "features": {
+    "split": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "genre": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "dataset": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "year": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "sid": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "score": {
+      "dtype": "float64",
+      "_type": "Value"
+    },
+    "sentence1": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "sentence2": {
+      "feature": {
+        "feature": {
+          "dtype": "float32",
+          "_type": "Value"
+        },
+        "_type": "List"
+      },
+      "_type": "List"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 2023203,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 1057201,
+      "num_examples": 5749,
+      "dataset_name": "stsbenchmark-sts"
+    },
+    "validation": {
+      "name": "validation",
+      "num_bytes": 295062,
+      "num_examples": 1500,
+      "dataset_name": "stsbenchmark-sts"
+    },
+    "test": {
+      "name": "test",
+      "num_bytes": 243334,
+      "num_examples": 1379,
+      "dataset_name": "stsbenchmark-sts"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

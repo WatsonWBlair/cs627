@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 This file contains any custom trainers for aligning Encoders to the shared semantic space.
 """
 
-# TODO: Add class documentation
+# TODO: Add class documentation and make loss more neuanced.
 class Contrast(Trainer):
     def compute_loss(self, model: nn.Module, inputs: list[Tuple[str, torch.Tensor, torch.Tensor]], return_outputs: bool = False, num_items_in_batch: Optional[torch.Tensor] = None):
         margin = .1
