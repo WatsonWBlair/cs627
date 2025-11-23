@@ -5,7 +5,7 @@ from typing import Tuple, Optional
 
 from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers.modeling_outputs import BaseModelOutput
-
+from utils.Adapter import Adapter
 
 MODEL_NAME = "facebook/bart-base"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
