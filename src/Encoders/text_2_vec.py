@@ -7,11 +7,12 @@ from utils.Adapter import Adapter
 BASE_MODEL = "facebook/bart-base"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+# unified Encoder-Decoder model to adapt pretrained enocder to shared semantic space.
 class Text_to_Vec(torch.nn.Module):
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Text_to_Vec, self).__init__()
         self.tokenizer = BertTokenizer.from_pretrained(base_model, max_length=token_length)
-        adapterModel = Adapter(token_length=token_length, hidden_size=200 ,hidden_layers=2)
+        adapterModel = Adapter(f"{base_model}_enc")
         self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(base_model, adapterModel)
 
 
@@ -21,9 +22,9 @@ class Text_to_Vec(torch.nn.Module):
 
         return output
 
-
+# Encoder Pipeline, with the adapter as the first, or last step of the pipeline.
 # class TextPipeline(Pipeline):
-#     def _sanitize_parameters(self, **kwargs):
+#     def _sanitize_parameters(self, **kwargs, adapter: str):
 #         # Example: Ensure a 'threshold' parameter is valid
 #         if "threshold" in kwargs and not isinstance(kwargs["threshold"], (int, float)):
 #             raise ValueError("Threshold must be a number.")

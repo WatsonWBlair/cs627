@@ -18,6 +18,7 @@ class Vec_2_Speech():
         super(Vec_2_Speech, self).__init__()
 
         synthesiser = pipeline("text-to-speech", "suno/bark-small")
+        synthesiser.
 
         speech = synthesiser("Hello, my dog is cooler than you!", forward_params={"do_sample": True})
 

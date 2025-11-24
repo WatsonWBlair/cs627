@@ -10,7 +10,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class Image_to_Vec(torch.nn.Module):
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Image_to_Vec, self).__init__()
-        adapterModel = Adapter(input_size=token_length, hidden_size=200,output_size=token_length,hidden_layers=2)
+        adapterModel = Adapter(token_length==token_length, hidden_size=200,hidden_layers=2)
         self.model = VisionEncoderDecoderModel.from_pretrained(base_model, adapterModel)
         self.tokenizer = ViTImageProcessor.from_pretrained(base_model, max_length=token_length) #image_processor
 

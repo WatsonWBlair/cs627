@@ -23,5 +23,3 @@ class SEED():
     def forward(self, semantic_vector: tensor.Tensor, device: str = DEVICE):
         output = self.safe_pipeline.to(device)(prompt=semantic_vector, generator=self.generator).images[0]
         return output
-
-    def tokenize

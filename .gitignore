@@ -218,3 +218,5 @@ __marimo__/
 /PyTorch_Tuorials/data
 *.pth
 /src/Training/Data_Wrangling/Combined_Dataset_for_Speech_Emotion_Recognition-master
+/src/Training/Data_Wrangling/datasets/savee
+src/Training/Data_Wrangling/archive.zip
