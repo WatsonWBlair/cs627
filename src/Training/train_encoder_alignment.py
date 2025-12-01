@@ -29,8 +29,8 @@ from transformers import TrainingArguments
 import numpy as np
 from tqdm import tqdm
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# Add src directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Encoders.text_2_vec import Text_to_Vec
 from Encoders.wav_2_vec import Audio_to_Vec

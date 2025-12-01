@@ -50,10 +50,16 @@ def download_mosi(data_path: str = 'data/cmumosi/'):
             "cd CMU-MultimodalSDK && pip install ."
         )
 
+    # Convert to absolute path and ensure it ends with separator
+    data_path = os.path.abspath(data_path)
+    if not data_path.endswith(os.sep):
+        data_path = data_path + os.sep
+
     os.makedirs(data_path, exist_ok=True)
 
     print(f"Downloading CMU-MOSI dataset to {data_path}...")
-
+    print(data_path)
+    
     # Download raw data (transcripts, phonemes, etc.)
     print("Downloading raw data (text transcripts)...")
     raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, data_path)
@@ -103,13 +109,14 @@ class MOSIDataset(Dataset):
         """
         super().__init__()
 
-        self.data_path = data_path
+        # Convert to absolute path
+        self.data_path = os.path.abspath(data_path)
         self.split = split
         self.return_labels = return_labels
         self.max_text_length = max_text_length
 
         # Load preprocessed data if available
-        preprocessed_path = os.path.join(data_path, f'preprocessed_{split}.pkl')
+        preprocessed_path = os.path.join(self.data_path, f'preprocessed_{split}.pkl')
         if os.path.exists(preprocessed_path):
             print(f"Loading preprocessed {split} data from {preprocessed_path}")
             with open(preprocessed_path, 'rb') as f:
@@ -183,6 +190,11 @@ def preprocess_mosi(
         raise ImportError(
             "CMU-MultimodalSDK not installed. Please install it first."
         )
+
+    # Convert to absolute path and ensure it ends with separator
+    data_path = os.path.abspath(data_path)
+    if not data_path.endswith(os.sep):
+        data_path = data_path + os.sep
 
     print("Loading CMU-MOSI data...")
 
@@ -296,6 +308,8 @@ def get_mosi_dataloader(
     Returns:
         PyTorch DataLoader
     """
+    # Convert to absolute path
+    data_path = os.path.abspath(data_path)
     dataset = MOSIDataset(data_path=data_path, split=split)
 
     return DataLoader(
