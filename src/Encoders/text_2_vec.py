@@ -1,16 +1,20 @@
 import torch
-from transformers import EncoderDecoderModel, BertTokenizer
+from transformers import BartModel, BartTokenizer
 
 from utils.Adapter import Adapter
 
 BASE_MODEL = "facebook/bart-base"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Unified Encoder-Decoder model to adapt pretrained encoder to shared semantic space.
+# Pretrained Encoder + MLP Adapter architecture for semantic space alignment
 class Text_to_Vec(torch.nn.Module):
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Text_to_Vec, self).__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(base_model, max_length=token_length)
+        self.tokenizer = BartTokenizer.from_pretrained(base_model)
+        self.max_length = token_length
+
+        # Load pretrained BART encoder
+        self.encoder = BartModel.from_pretrained(base_model)
 
         # Create adapter with proper parameters
         self.adapter = Adapter(
@@ -21,13 +25,40 @@ class Text_to_Vec(torch.nn.Module):
             hidden_layers=2
         )
 
-        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(base_model, self.adapter)
+    def forward(self, input_text, max_length: int = None, device: str = DEVICE):
+        """
+        Forward pass: tokenize -> encode with BART -> project with adapter
 
-    def forward(self, input_text: str, *, max_length: int = 1024, device: str = DEVICE):
-        inputs = self.tokenizer(input_text, return_tensors="pt", max_length=max_length, truncation=True).to(device).input_ids
-        output = self.model.generate(inputs)[0]
+        Args:
+            input_text: String or list of strings
+            max_length: Maximum sequence length
+            device: Device to use
 
-        return output
+        Returns:
+            Semantic vector representation (batch_size, embed_dim)
+        """
+        if max_length is None:
+            max_length = self.max_length
+
+        # Tokenize input
+        inputs = self.tokenizer(
+            input_text,
+            return_tensors="pt",
+            max_length=max_length,
+            truncation=True,
+            padding=True
+        ).to(device)
+
+        # Get encoder output (use last_hidden_state)
+        encoder_output = self.encoder(**inputs).last_hidden_state
+
+        # Pool encoder output (mean pooling over sequence)
+        pooled_output = encoder_output.mean(dim=1)  # (batch_size, hidden_dim)
+
+        # Project to semantic space with adapter
+        semantic_vector = self.adapter(pooled_output)
+
+        return semantic_vector
 
 # Encoder Pipeline, with the adapter as the first, or last step of the pipeline.
 # class TextPipeline(Pipeline):

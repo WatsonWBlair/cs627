@@ -32,15 +32,13 @@ from tqdm import tqdm
 # Add src directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
-from Encoders.img_2_vec import Image_to_Vec
+from Encoders.feature_2_vec import Text_to_Vec_Features, Audio_to_Vec_Features, Video_to_Vec_Features
 from Training.encoder_trainers import Contrast
-from Training.Data_Wrangling.mosi_dataset import MOSIDataset, download_mosi, preprocess_mosi, get_mosi_dataloader
+from Training.Data_Wrangling.mosi_dataset import MOSIDataset, download_mosi, preprocess_mosi, mosi_collate_fn
 
 
 # Configuration
-DATA_PATH = 'data/cmumosi/'
+DATA_PATH = 'data/cmumosi/mosi/'
 OUTPUT_DIR = 'results/encoder_alignment/'
 ADAPTER_WEIGHTS_DIR = 'AdapterWeights/'
 
@@ -82,9 +80,9 @@ def setup_data():
         print("\n[2/2] Preprocessing CMU-MOSI...")
         preprocess_mosi(DATA_PATH)
 
-        print("\n✓ Dataset ready!")
+        print("\n[OK] Dataset ready!")
     else:
-        print("\n✓ Preprocessed data found. Skipping download.")
+        print("\n[OK] Preprocessed data found. Skipping download.")
 
 
 def setup_encoders(device='cuda'):
@@ -98,29 +96,17 @@ def setup_encoders(device='cuda'):
     print("Initializing encoders...")
     print("=" * 80)
 
-    # Initialize encoders
-    text_encoder = Text_to_Vec().to(device)
-    audio_encoder = Audio_to_Vec().to(device)
-    video_encoder = Image_to_Vec().to(device)
+    # Initialize encoders (all using pre-extracted features)
+    text_encoder = Text_to_Vec_Features().to(device)  # GloVe features
+    audio_encoder = Audio_to_Vec_Features().to(device)  # COVAREP features
+    video_encoder = Video_to_Vec_Features().to(device)  # FACET features
 
-    # Freeze pretrained models (only train adapters)
-    print("\nFreezing pretrained models (only training adapters)...")
+    # Note: These are feature-based encoders (only MLP adapters, no pretrained models)
+    print("\nUsing feature-based encoders (training MLP adapters)...")
 
     for encoder_name, encoder in [('Text', text_encoder), ('Audio', audio_encoder), ('Video', video_encoder)]:
-        # Freeze all parameters
-        for param in encoder.parameters():
-            param.requires_grad = False
-
-        # Unfreeze adapter
-        if hasattr(encoder, 'adapter'):
-            for param in encoder.adapter.parameters():
-                param.requires_grad = True
-
-            trainable_params = sum(p.numel() for p in encoder.adapter.parameters() if p.requires_grad)
-            total_params = sum(p.numel() for p in encoder.parameters())
-
-            print(f"  {encoder_name} Encoder: {trainable_params:,} / {total_params:,} trainable params "
-                  f"({100 * trainable_params / total_params:.2f}%)")
+        trainable_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+        print(f"  {encoder_name} Encoder (Feature-based): {trainable_params:,} trainable params")
 
     encoders = {
         'text': text_encoder,
@@ -128,7 +114,7 @@ def setup_encoders(device='cuda'):
         'video': video_encoder
     }
 
-    print("\n✓ Encoders initialized!")
+    print("\n[OK] Encoders initialized!")
     return encoders
 
 
@@ -166,6 +152,7 @@ def setup_trainer(encoders, train_dataset):
         model=encoders,
         args=training_args,
         train_dataset=train_dataset,
+        data_collator=mosi_collate_fn,  # Use custom collate function for variable-length sequences
         momentum=MOMENTUM,
         queue_size=QUEUE_SIZE,
         temperature=TEMPERATURE,
@@ -173,7 +160,7 @@ def setup_trainer(encoders, train_dataset):
         use_momentum=True
     )
 
-    print("\n✓ Trainer initialized!")
+    print("\n[OK] Trainer initialized!")
     return trainer
 
 
@@ -205,17 +192,17 @@ def evaluate_cross_modal_retrieval(encoders, dataloader, device='cuda', top_k=[1
 
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Encoding validation set"):
-            # Encode each modality
+            # Encode each modality (features are lists of tensors from custom collate_fn)
             if 'text' in batch:
-                text_emb = encoders_eval['text'](batch['text'].to(device))
+                text_emb = encoders_eval['text'](batch['text'], device=device)
                 text_embeddings.append(F.normalize(text_emb, dim=1))
 
             if 'audio' in batch:
-                audio_emb = encoders_eval['audio'](batch['audio'].to(device))
+                audio_emb = encoders_eval['audio'](batch['audio'], device=device)
                 audio_embeddings.append(F.normalize(audio_emb, dim=1))
 
             if 'video' in batch:
-                video_emb = encoders_eval['video'](batch['video'].to(device))
+                video_emb = encoders_eval['video'](batch['video'], device=device)
                 video_embeddings.append(F.normalize(video_emb, dim=1))
 
     # Concatenate all embeddings
@@ -274,7 +261,7 @@ def save_adapter_weights(encoders):
     for modality, encoder in encoders.items():
         if hasattr(encoder, 'adapter'):
             encoder.adapter.save()
-            print(f"  ✓ Saved {modality} adapter weights")
+            print(f"  [OK] Saved {modality} adapter weights")
 
 
 def main():
@@ -303,8 +290,8 @@ def main():
     print(f"\n  Train samples: {len(train_dataset)}")
     print(f"  Validation samples: {len(val_dataset)}")
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=mosi_collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=mosi_collate_fn)
 
     # Step 3: Initialize encoders
     encoders = setup_encoders(device)
