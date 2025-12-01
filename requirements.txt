@@ -4,8 +4,15 @@ tensor
 transformers
 mteb
 sentence-transformers
-transformers
 datasets
 evaluate
 accelerate
 trl
+h5py
+validators
+tqdm
+numpy
+Pillow
+librosa
+soundfile
+diffusers

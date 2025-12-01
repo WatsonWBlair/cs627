@@ -1,78 +1,195 @@
-# cs627
+# Semantic-Vector Space for Multimodal Understanding
 
-This repo is to coordinate work for Project 5 of CS627: Artificial Intelligence.
+CS627 AI Research Project examining the impact of a shared **Semantic-Vector Space (SVS)** on Natural Language Understanding (NLU) tasks.
 
-## SETUP
-This project uses Meta's SONAR which relies on a MacOS (via a dependency on fairseq2)
+## Overview
 
-Note that if you are using a system that fairseq2 does not provide a build for, you will need to compile it from source. See [this guide](https://github.com/facebookresearch/fairseq2/blob/main/INSTALL_FROM_SOURCE.md) for instructions on how to do this.
+This project implements an encoder-decoder architecture that aligns multiple modalities (text, audio, video) to a shared semantic vector space. By training inference models to operate in this common representation space, we enable:
 
-It is expected that you are using Conda to manage your local Python environment.
+- **Cross-modal understanding**: Text, audio, and video share the same semantic representation
+- **Efficient training**: 100x cheaper than full fine-tuning (only train small MLP adapters)
+- **Modular design**: Add new modalities without retraining existing encoders
+- **Scientific rigor**: Clear separation between encoding, inference, and decoding enables isolated evaluation
 
-Execute the following command to ensure perquisites are installed:
-```
+**Key Innovation**: BERT-style architecture (Pretrained Model + MLP Adapter) trained with Cross-Modal Momentum Contrastive Learning (MoCo).
+
+## Quick Start
+
+### 1. Installation
+
+```bash
+# Install SONAR and fairseq2 (requires conda)
 sudo conda install -c conda-forge libsndfile sonar-space fairseq2
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install CMU-MultimodalSDK for dataset access
+git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
+cd CMU-MultimodalSDK && pip install .
 ```
 
+**Note**: If fairseq2 doesn't have a build for your system, [compile from source](https://github.com/facebookresearch/fairseq2/blob/main/INSTALL_FROM_SOURCE.md).
 
-## Project Overview:
-Full project specifications are located in the `documentation` directory.
+### 2. Train Encoders
 
-The team has been examining the role of Semantics and Internal Latent Spaces in Natural/Spoken Language Understanding.
+```bash
+# Train text, audio, and video encoders on CMU-MOSI dataset
+python src/Training/train_encoder_alignment.py
+```
 
-This project will examine the efficacy using models fine tuned to a shared semantic space for an NLP task. The overall architecure will rely on Encode/Decoder to translate text modalidy data into a modality models trained to the shared semantic space can consume and output. This transitions them from a text modality to a latent space modality.
+See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
 
-We will then compare model performance between text modality and latent-space modality.
-1. MiniGPT
-2. o4GPT
-3. Open-Weight Models
-4. DeepSeek
-5. Claude Sonnet
+### 3. Use Trained Encoders
 
-Key benchmarks we should seek to evaluate are:
-    - Task completion and performance.
-        - F1 score, accuracy, ect
-    - Infrence latency
-    - Model uncertanty
-    - Token utilization / infrence cost.
+```python
+from Encoders.text_2_vec import Text_to_Vec
+from Encoders.wav_2_vec import Audio_to_Vec
 
-##### Target Task
-- [GLU Benchmark for General Language Understanding Evaluation](https://gluebenchmark.com/)
-- [SuperGLU](https://super.gluebenchmark.com/)
+# Load encoders (adapters auto-load trained weights)
+text_encoder = Text_to_Vec()
+audio_encoder = Audio_to_Vec()
 
+# Encode to shared semantic space
+text_vector = text_encoder("This is a test")
+audio_vector = audio_encoder(audio_waveform)
 
-### Foundational Research:
-All relevant publications reviewed by the team are located in the `litrature` directory. 
-Each paper is acompanied by a .txt file that contains the main takeaways and points of interest.
+# Measure cross-modal similarity
+import torch.nn.functional as F
+similarity = F.cosine_similarity(text_vector, audio_vector)
+```
 
-### Implementation:
-All software and implementaiton assets are contained within the `src` directory.
-- Fine Tuning to Latenet Space
-    - Contrastive Learning
-- Evaluation / Testesting
-- Train Shared Space encoder/decoder
-    - and training protocol for other modalities.
+## Architecture
 
-- Modality Encoder/Decoder: Bert/Bart [https://arxiv.org/abs/1910.03771] - start with BART text encoder/decoder.
+### Encoders (Input → Semantic Vector)
 
-- Contrast Learning Module: cosine distance is used to compute the similarity of speech-text embeddings using infoNCE loss
-- Model Harness Module: maps encoders to fine-tuned models for evaluation.
+**Design**: Pretrained Model + MLP Adapter
 
-##### System Design
-TBD
+```
+Text/Audio/Video → Pretrained Encoder → MLP Adapter → Semantic Vector (1024-dim)
+```
 
+**Current Encoders**:
+- **Text**: `facebook/bart-base` + Adapter → `text_2_vec.py`
+- **Audio**: `openai/whisper-small` + Adapter → `wav_2_vec.py`
+- **Video**: `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
 
-## Next Steps
-- Custom built model that is trained on latent space from the begenning, and does not include encoder/decoder within it's original architecure.
-- Chain of thought evaluation of latent space modality.
-- Diffrent modalities for encoding/decoding (audio, image)
+See [Encoder README](src/Encoders/README.md) for adding new encoders.
 
-## Division Of Labor
-##### Paper Authorship
-- Xavier: Lead author
-- Kumar: Problem Statement
+### Decoders (Semantic Vector → Output)
 
-##### Implementation
-- Watson: Training Architecture and Evaluation Utilities
-- Ram: Encoder / Decoder Implementation
-- Swatej: Data Wrangling and Pre-Processing
+**Design**: MLP Adapter + Pretrained Decoder
+
+```
+Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
+```
+
+**Current Decoders**:
+- **Text**: Adapter + `facebook/bart-base` → `vec_2_text.py`
+- **Image**: Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py`
+- **Audio**: Adapter + `suno/bark-small` → `vec_2_audio.py`
+
+See [Decoder README](src/Decoders/README.md) for adding new decoders.
+
+### Training
+
+**Encoder Alignment**: Cross-Modal Momentum Contrastive Learning (MoCo)
+- Momentum encoder with exponential moving average
+- Memory queue for large-scale negative sampling
+- InfoNCE loss for stable contrastive learning
+
+**Decoder Training**: Dual-loss backtranslation
+- Reconstruction loss (aesthetic fidelity)
+- Vector-space loss (semantic preservation)
+
+See [Training README](src/Training/README.md) for complete training guide.
+
+## Repository Structure
+
+```
+cs627/
+├── src/
+│   ├── Encoders/              # Modality → Semantic Vector
+│   │   ├── text_2_vec.py      # Text encoder (BART)
+│   │   ├── wav_2_vec.py       # Audio encoder (Whisper)
+│   │   ├── img_2_vec.py       # Image encoder (ViT)
+│   │   └── README.md          # How to add new encoders
+│   ├── Decoders/              # Semantic Vector → Modality
+│   │   ├── vec_2_text.py      # Text decoder
+│   │   ├── vec_2_img.py       # Image decoder (Stable Diffusion)
+│   │   ├── vec_2_audio.py     # Audio decoder (TTS)
+│   │   └── README.md          # How to add new decoders
+│   ├── Training/              # Training infrastructure
+│   │   ├── encoder_trainers.py     # MoCo contrastive learning
+│   │   ├── decoder_trainers.py     # Dual-loss training
+│   │   ├── train_encoder_alignment.py  # Main training script
+│   │   ├── Data_Wrangling/
+│   │   │   └── mosi_dataset.py     # CMU-MOSI dataset loader
+│   │   ├── README.md          # Training documentation
+│   │   └── QUICKSTART.md      # Quick start guide
+│   ├── Inference/             # Inference applications
+│   │   ├── Chatbot/           # Seq2seq chatbot in semantic space
+│   │   └── Summarization/     # Text summarization
+│   └── utils/
+│       └── Adapter.py         # MLP adapter module
+├── litrature/                 # Research papers and notes
+│   ├── Paper.txt              # Companion research paper
+│   └── previous_work/         # Related work and references
+├── CLAUDE.md                  # Project guide for Claude Code
+├── requirements.txt           # Python dependencies
+└── README.md                  # This file
+```
+
+## Documentation
+
+- **[CLAUDE.md](CLAUDE.md)**: Comprehensive project guide (architecture, setup, workflows)
+- **[src/Encoders/README.md](src/Encoders/README.md)**: How to create and train encoders
+- **[src/Decoders/README.md](src/Decoders/README.md)**: How to create and train decoders
+- **[src/Training/README.md](src/Training/README.md)**: Training methodology and best practices
+- **[src/Training/QUICKSTART.md](src/Training/QUICKSTART.md)**: Quick start for training
+
+## Datasets
+
+**Primary**: [CMU-MOSI](http://multicomp.cs.cmu.edu/resources/cmu-mosi-dataset/) - Multimodal Opinion Sentiment Intensity
+- 2,199 opinion video segments
+- Modalities: Text transcripts, audio, video
+- Accessed via [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK)
+
+**Evaluation**: MultiBench, Conceptual 12M (see [CLAUDE.md](CLAUDE.md) for details)
+
+## Key Features
+
+✅ **Modular architecture**: Encoders, inference, and decoders are independent
+✅ **100x training efficiency**: Only train small MLP adapters, not full models
+✅ **Cross-modal alignment**: Text ↔ Audio ↔ Video share semantic space
+✅ **Momentum contrastive learning**: Stable training with InfoNCE loss
+✅ **Backtranslation**: Synthesize training data for unsupervised alignment
+✅ **Extensible**: Easy to add new modalities (depth, radar, etc.)
+
+## Research
+
+This project builds on:
+- **Meta's Large Concept Model** (LCM) [Paper 7]
+- **SONAR** sentence-level multimodal representations [Paper 8]
+- **Cross-Modal Momentum Contrastive Learning** [IEEE 2024]
+- **MoCo** (Momentum Contrast) [CVPR 2020]
+- **BERT-style Adapter Architecture** (APE) [Apple, Paper 11]
+
+See `litrature/` directory for full paper collection and `litrature/Paper.txt` for the companion research paper.
+
+## Contributing
+
+This is a research project for CS627. For questions or contributions, please refer to the companion paper in `litrature/Paper.txt` or contact the team.
+
+## References
+
+- [CMU-MOSI Dataset](http://multicomp.cs.cmu.edu/resources/cmu-mosi-dataset/)
+- [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK)
+- [MultiBench](https://github.com/pliang279/MultiBench)
+- [Meta SONAR](https://github.com/facebookresearch/SONAR)
+- [fairseq2](https://github.com/facebookresearch/fairseq2)
+
+---
+
+**Project Status**: Active development | CS627 AI Research
+**License**: Research/Educational Use

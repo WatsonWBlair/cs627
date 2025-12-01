@@ -1,5 +1,5 @@
 import torch
-from transformers import  ViTImageProcessor, VisionEncoderDecoderModel
+from transformers import ViTImageProcessor, VisionEncoderDecoderModel
 
 from utils.Adapter import Adapter
 
@@ -10,20 +10,33 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class Image_to_Vec(torch.nn.Module):
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Image_to_Vec, self).__init__()
-        adapterModel = Adapter(token_length==token_length, hidden_size=200,hidden_layers=2)
-        self.model = VisionEncoderDecoderModel.from_pretrained(base_model, adapterModel)
-        self.tokenizer = ViTImageProcessor.from_pretrained(base_model, max_length=token_length) #image_processor
 
-       
-    def forward(self, input_img, *, max_length: int = 1024, device: str = DEVICE):
-        pixel_values = self.tokenizer(input_img, return_tensors="pt", max_length=max_length).to(device).pixel_values
-        output = self.model.generate(pixel_values, skip_special_tokens=True)[0]
+        self.processor = ViTImageProcessor.from_pretrained(base_model)
 
-        return output
+        # Create adapter with proper parameters
+        self.adapter = Adapter(
+            prefix=f"{base_model.replace('/', '_')}_image_enc",
+            input_length=token_length,
+            output_length=token_length,
+            hidden_size=200,
+            hidden_layers=2
+        )
 
+        self.model = VisionEncoderDecoderModel.from_pretrained(base_model)
+        # Note: The adapter integration with VisionEncoderDecoderModel may need adjustment
+        # based on how you want to integrate it into the pipeline
 
-    def tokenize(self, input_img):
-        return self.tokenizer(input_img, return_tensors="pt", max_length=1024).to(DEVICE).pixel_values
+    def forward(self, input_img, *, device: str = DEVICE):
+        # Process image input
+        pixel_values = self.processor(input_img, return_tensors="pt").pixel_values.to(device)
+
+        # Generate caption/features from vision encoder
+        output = self.model.generate(pixel_values)[0]
+
+        # Convert to semantic vector via adapter
+        semantic_vector = self.adapter(output)
+
+        return semantic_vector
         
 
 
