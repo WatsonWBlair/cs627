@@ -52,10 +52,10 @@ Convert modalities (text, audio, image) into semantic vectors.
 - This design is highly performant, less prone to overfitting, 2 orders of magnitude cheaper to train, and more robust to distribution shift
 
 **Key Files**:
-- `text_2_vec.py` - Text encoder using `facebook/bart-base` + Adapter
-- `wav_2_vec.py` - Audio encoder using `openai/whisper-small` + Adapter
-- `img_2_vec.py` - Image encoder + Adapter
-- `text/SEED.py`, `audio/SEED.py`, `image/SEED.py` - SEED implementations
+- `text_2_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter
+- `wav_2_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter
+- `img_2_vec.py` - Image encoder (`Image_to_Vec`) + Adapter
+- `encoder_boilerplate.py` - Template for creating new encoders
 
 **Target Models** (from paper):
 - FacebookBART - Text modality
@@ -73,10 +73,10 @@ Convert semantic vectors back to modalities.
 **Important**: To train a Decoder, an Encoder of the same modality must already exist.
 
 **Key Files**:
-- `vec_2_text.py` - Vector to text decoder using Adapter + `facebook/bart-base`
-- `vec_2_audio.py` - Vector to audio decoder
-- `vec_2_img.py` - Vector to image decoder
-- `text/SEED.py`, `audio/SEED.py`, `image/SEED.py` - SEED implementations
+- `vec_2_text.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - Fully implemented
+- `vec_2_audio.py` - Vector to audio decoder (`Vec_to_Audio`) - EXPERIMENTAL
+- `vec_2_img.py` - Vector to image decoder (`Vec_to_Image`) - EXPERIMENTAL
+- `decoder_boilerplate.py` - Template for creating new decoders
 
 **Target Models** (from paper):
 - MiniGPT - Text generation
@@ -112,7 +112,7 @@ Uses **Cross-Modal Momentum Contrastive Learning** (based on [1]).
 
 **Input Format**: `[(query, positive, negative), ...]`
 
-#### Decoder Alignment (`src/Training/decoder_trainers.py`)
+#### Decoder Alignment
 Dual loss approach (Fig. 4 in paper):
 
 1. **Reconstruction Loss**: Measures decoder's fidelity to training data's aesthetic features
@@ -120,6 +120,8 @@ Dual loss approach (Fig. 4 in paper):
    - Uses negative cosine similarity: `-cos_sim(vecA, vecB)`
 
 Both losses measure reconstruction quality from different perspectives.
+
+**Total Decoder Loss**: `α × Reconstruction Loss + β × Semantic Fidelity Loss`
 
 ### Inference Modules (`src/Inference/`)
 
@@ -202,16 +204,21 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 
 - **Base model**: `facebook/bart-base` (BART encoder is the ground truth for semantic space)
 - **Audio model**: `openai/whisper-small`
-- **Tokenization**: BertTokenizer for text (max_length=1024), WhisperProcessor for audio
+- **Tokenization**: BartTokenizer for text (max_length=1024), WhisperProcessor for audio
 - **This is cross-modal work**: Unlike previous research [1-5] focusing only on text↔audio, this project includes images
+- **Class naming convention**: `{Modality}_to_Vec` for encoders, `Vec_to_{Modality}` for decoders
+- **All components inherit from**: `torch.nn.Module` (not Pipeline or other base classes)
+
+## Project Documentation
+
+- **ARCHITECTURE.md** - Comprehensive architecture patterns and design principles
+- **EVALUATION.md** - Evaluation metrics and testing guidelines
+- **src/Encoders/encoder_boilerplate.py** - Template for creating new encoders
+- **src/Decoders/decoder_boilerplate.py** - Template for creating new decoders
 
 ## Archive Directories
 
-- `src/archive/` - Old VAE implementations and experimental embedders
-- `src/Encoders/text/archive/`, `src/Encoders/image/archive/` - Previous encoder versions
-- `src/Decoders/text/archive/` - Previous decoder implementations
-
-These contain historical code and should not be modified unless explicitly working with legacy implementations.
+Archive directories (`src/archive/`, `src/Encoders/*/archive/`, etc.) contain historical code and are not under active development. Do not modify archive code unless explicitly working with legacy implementations.
 
 ## References
 

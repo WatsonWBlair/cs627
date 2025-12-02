@@ -31,6 +31,38 @@ from typing import Dict, List, Tuple, Optional
 import pickle
 
 
+def mosi_collate_fn(batch):
+    """
+    Custom collate function for variable-length MOSI sequences.
+
+    Since sequences have different lengths, we can't stack them directly.
+    Instead, return lists of tensors that the encoder will handle individually.
+    """
+    # Extract each modality into separate lists
+    text_features = [torch.tensor(item['text'], dtype=torch.float32) for item in batch]
+    audio_features = [torch.tensor(item['audio'], dtype=torch.float32) for item in batch]
+    video_features = [torch.tensor(item['video'], dtype=torch.float32) for item in batch]
+    segment_ids = [item['segment_id'] for item in batch]
+
+    # Labels can be stacked (they're scalars)
+    if 'label' in batch[0]:
+        labels = torch.tensor([item['label'] for item in batch], dtype=torch.float32)
+        return {
+            'text': text_features,
+            'audio': audio_features,
+            'video': video_features,
+            'segment_id': segment_ids,
+            'label': labels
+        }
+    else:
+        return {
+            'text': text_features,
+            'audio': audio_features,
+            'video': video_features,
+            'segment_id': segment_ids
+        }
+
+
 def download_mosi(data_path: str = 'data/cmumosi/'):
     """
     Download CMU-MOSI dataset using CMU-MultimodalSDK
@@ -50,10 +82,16 @@ def download_mosi(data_path: str = 'data/cmumosi/'):
             "cd CMU-MultimodalSDK && pip install ."
         )
 
+    # Use Unix-style relative path for SDK compatibility
+    # The SDK expects relative paths with forward slashes (works on Windows and Unix)
+    data_path = data_path.replace('\\', '/')
+    if not data_path.endswith('/'):
+        data_path = data_path + '/'
+
     os.makedirs(data_path, exist_ok=True)
 
     print(f"Downloading CMU-MOSI dataset to {data_path}...")
-
+    
     # Download raw data (transcripts, phonemes, etc.)
     print("Downloading raw data (text transcripts)...")
     raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, data_path)
@@ -70,7 +108,7 @@ def download_mosi(data_path: str = 'data/cmumosi/'):
     print("Aligning data to opinion segments...")
     highlevel_data.align('Opinion Segment Labels')
 
-    print(f"✓ Download complete! Data saved to {data_path}")
+    print(f"[OK] Download complete! Data saved to {data_path}")
     print(f"  Available sequences: {list(highlevel_data.computational_sequences.keys())}")
 
     return {
@@ -103,13 +141,16 @@ class MOSIDataset(Dataset):
         """
         super().__init__()
 
-        self.data_path = data_path
+        # Normalize to Unix-style path
+        self.data_path = data_path.replace('\\', '/')
+        if not self.data_path.endswith('/'):
+            self.data_path = self.data_path + '/'
         self.split = split
         self.return_labels = return_labels
         self.max_text_length = max_text_length
 
         # Load preprocessed data if available
-        preprocessed_path = os.path.join(data_path, f'preprocessed_{split}.pkl')
+        preprocessed_path = os.path.join(self.data_path, f'preprocessed_{split}.pkl')
         if os.path.exists(preprocessed_path):
             print(f"Loading preprocessed {split} data from {preprocessed_path}")
             with open(preprocessed_path, 'rb') as f:
@@ -184,17 +225,26 @@ def preprocess_mosi(
             "CMU-MultimodalSDK not installed. Please install it first."
         )
 
+    # Use Unix-style relative path for SDK compatibility
+    data_path = data_path.replace('\\', '/')
+    if not data_path.endswith('/'):
+        data_path = data_path + '/'
+
     print("Loading CMU-MOSI data...")
 
-    # Load high-level features
+    # Load high-level features (pre-extracted features for all modalities)
+    print("  Loading high-level features...")
     data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, data_path)
     data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, data_path)
+
+    # Align all sequences to opinion segments
+    print("  Aligning all modalities to opinion segments...")
     data.align('Opinion Segment Labels')
 
-    # Extract computational sequences
-    text_seq = data.computational_sequences.get('glove_vectors')
-    audio_seq = data.computational_sequences.get('COVAREP')
-    video_seq = data.computational_sequences.get('FACET 4.2')
+    # Extract computational sequences (all are aligned)
+    text_seq = data.computational_sequences.get('glove_vectors')  # Pre-extracted GloVe features
+    audio_seq = data.computational_sequences.get('COVAREP')       # Pre-extracted COVAREP features
+    video_seq = data.computational_sequences.get('FACET_4.2')    # Pre-extracted FACET features
     label_seq = data.computational_sequences['Opinion Segment Labels']
 
     if not all([text_seq, audio_seq, video_seq]):
@@ -212,28 +262,29 @@ def preprocess_mosi(
 
     for seg_id in all_segments:
         try:
-            # Extract features for each modality
-            text_features = text_seq.data[seg_id]['features']
-            audio_features = audio_seq.data[seg_id]['features']
-            video_features = video_seq.data[seg_id]['features']
-            label = label_seq.data[seg_id]['features'][0]  # Sentiment score
-
-            # Note: These are pre-extracted features (GloVe, COVAREP, FACET)
-            # For custom encoders, we need RAW text/audio/video
-            # This is a placeholder - you may need to access raw transcripts separately
+            # Extract pre-extracted features for all modalities
+            text_features = text_seq.data[seg_id]['features']    # GloVe vectors
+            audio_features = audio_seq.data[seg_id]['features']  # COVAREP features
+            video_features = video_seq.data[seg_id]['features']  # FACET features
+            label = label_seq.data[seg_id]['features'][0]        # Sentiment score
 
             sample = {
-                'text': text_features,  # Will need to replace with raw transcript
-                'audio': audio_features,  # Will need to replace with raw waveform
-                'video': video_features,
+                'text': text_features,   # Pre-extracted GloVe features (seq_len, 300)
+                'audio': audio_features, # Pre-extracted COVAREP features (seq_len, 74)
+                'video': video_features, # Pre-extracted FACET features (seq_len, 35)
                 'label': float(label)
             }
 
             samples.append(sample)
             segment_ids.append(seg_id)
 
-        except KeyError:
+        except KeyError as e:
             # Skip segments missing some modalities
+            # print(f"Skipping segment {seg_id}: missing data ({e})")
+            continue
+        except Exception as e:
+            # Skip any other errors
+            # print(f"Skipping segment {seg_id}: error ({e})")
             continue
 
     print(f"Extracted {len(samples)} samples")
@@ -267,7 +318,7 @@ def preprocess_mosi(
                 'segment_ids': split_ids
             }, f)
 
-        print(f"✓ Saved {split_size} {split_name} samples to {save_path}")
+        print(f"[OK] Saved {split_size} {split_name} samples to {save_path}")
 
     print("\nPreprocessing complete!")
     print(f"  Train: {splits['train'][1]} samples")
@@ -296,6 +347,10 @@ def get_mosi_dataloader(
     Returns:
         PyTorch DataLoader
     """
+    # Normalize to Unix-style path
+    data_path = data_path.replace('\\', '/')
+    if not data_path.endswith('/'):
+        data_path = data_path + '/'
     dataset = MOSIDataset(data_path=data_path, split=split)
 
     return DataLoader(
@@ -332,4 +387,4 @@ if __name__ == '__main__':
         print(f"  Segment IDs: {batch['segment_id'][:2]}...")
         break
 
-    print("\n✓ Dataset ready for training!")
+    print("\n[OK] Dataset ready for training!")
