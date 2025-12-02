@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a CS627 AI research project examining the impact of a shared **Semantic-Vector Space (SVS)** on Natural Language Understanding (NLU) tasks. The project builds on Meta's Large Concept Model work [7] and SONAR [8] to provide a clear methodology for training and evaluating models that transition data into and out of a Semantic-Vector modality.
+This is a CS627 AI research project examining the impact of a shared **Semantic-Vector Space (SVS)** on Natural Language Understanding (NLU) tasks. The project builds on Meta's Large Concept Model work [7] to provide a clear methodology for training and evaluating models that transition data into and out of a Semantic-Vector modality using HuggingFace transformers and adapters.
 
 **Core Contribution**: An Encoder and Decoder evaluation and alignment pipeline that allows for iterative adoption of new input and output modalities to a common Semantic-Vector space.
 
@@ -12,24 +12,19 @@ This is a CS627 AI research project examining the impact of a shared **Semantic-
 
 ## Setup and Dependencies
 
-This project requires **MacOS** (due to fairseq2 dependency) and **Conda** for environment management.
-
 ### Initial Setup
 ```bash
-# Install prerequisites
-sudo conda install -c conda-forge libsndfile sonar-space fairseq2
-
 # Install Python dependencies
 pip install -r requirements.txt
 ```
 
-**Note**: If fairseq2 doesn't have a build for your system, compile from source: https://github.com/facebookresearch/fairseq2/blob/main/INSTALL_FROM_SOURCE.md
-
 ### Key Dependencies
-- `fairseq2` and `sonar-space` (Meta's SONAR - sentence-level multimodal representations)
-- `transformers` (HuggingFace models - BART, BERT, Whisper, ViT, GPT-2)
+- `transformers` (HuggingFace models - BART, Whisper, ViT, Stable Diffusion)
+- `torch` (PyTorch deep learning framework)
+- `diffusers` (Stable Diffusion models)
 - `mteb` and `sentence-transformers` (embedding evaluation)
 - `datasets`, `evaluate`, `accelerate`, `trl` (training and evaluation)
+- `librosa` and `soundfile` (audio processing)
 
 ## Architecture Overview
 
@@ -52,16 +47,17 @@ Convert modalities (text, audio, image) into semantic vectors.
 - This design is highly performant, less prone to overfitting, 2 orders of magnitude cheaper to train, and more robust to distribution shift
 
 **Key Files**:
-- `text_2_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter
-- `wav_2_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter
-- `img_2_vec.py` - Image encoder (`Image_to_Vec`) + Adapter
+- `text_2_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter - Production
+- `wav_2_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter - Production
+- `img_2_vec.py` - Image encoder (`Image_to_Vec`) using `nlpconnect/vit-gpt2-image-captioning` + Adapter - Production
 - `encoder_boilerplate.py` - Template for creating new encoders
 
-**Target Models** (from paper):
-- FacebookBART - Text modality
-- Microsoft/Kosmos-2 - Image modality
-- Whisper - Spoken language
-- ViT-GPT2-image-captioning - Static images
+**Current Models**:
+- BART (facebook/bart-base) - Text encoding and decoding
+- Whisper (openai/whisper-small) - Audio encoding
+- ViT-GPT2 (nlpconnect/vit-gpt2-image-captioning) - Image encoding
+- Stable Diffusion (CompVis/stable-diffusion-v1-4) - Image decoding (experimental)
+- Bark TTS (suno/bark-small) - Audio decoding (experimental)
 
 #### 2. Decoders (`src/Decoders/`)
 Convert semantic vectors back to modalities.
@@ -73,14 +69,10 @@ Convert semantic vectors back to modalities.
 **Important**: To train a Decoder, an Encoder of the same modality must already exist.
 
 **Key Files**:
-- `vec_2_text.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - Fully implemented
-- `vec_2_audio.py` - Vector to audio decoder (`Vec_to_Audio`) - EXPERIMENTAL
-- `vec_2_img.py` - Vector to image decoder (`Vec_to_Image`) - EXPERIMENTAL
+- `vec_2_text.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - Production
+- `vec_2_audio.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
+- `vec_2_img.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
 - `decoder_boilerplate.py` - Template for creating new decoders
-
-**Target Models** (from paper):
-- MiniGPT - Text generation
-- Stable-Diffusion - Image generation
 
 #### 3. Adapter Module (`src/utils/Adapter.py`)
 Neural network bridge between pretrained models and shared semantic space.
@@ -204,17 +196,27 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 
 - **Base model**: `facebook/bart-base` (BART encoder is the ground truth for semantic space)
 - **Audio model**: `openai/whisper-small`
+- **Image model**: `nlpconnect/vit-gpt2-image-captioning`
 - **Tokenization**: BartTokenizer for text (max_length=1024), WhisperProcessor for audio
-- **This is cross-modal work**: Unlike previous research [1-5] focusing only on text↔audio, this project includes images
+- **This is cross-modal work**: Covers text, audio, and image modalities
 - **Class naming convention**: `{Modality}_to_Vec` for encoders, `Vec_to_{Modality}` for decoders
 - **All components inherit from**: `torch.nn.Module` (not Pipeline or other base classes)
+- **Multiple classes per file**: Each modality file can contain multiple encoder/decoder classes targeting different features
+- **EXPERIMENTAL status**: New encoders and decoders should be marked EXPERIMENTAL until validated
 
 ## Project Documentation
 
 - **ARCHITECTURE.md** - Comprehensive architecture patterns and design principles
 - **EVALUATION.md** - Evaluation metrics and testing guidelines
+- **CONTRIBUTING.md** - Contribution guidelines for developers
 - **src/Encoders/encoder_boilerplate.py** - Template for creating new encoders
 - **src/Decoders/decoder_boilerplate.py** - Template for creating new decoders
+
+## Developer Tools
+
+- **tools/create_encoder.py** - Generator script for new encoders (marks as EXPERIMENTAL by default)
+- **tools/create_decoder.py** - Generator script for new decoders (marks as EXPERIMENTAL by default)
+- **tools/validate_module.py** - Functional validation for production modules (skips experimental)
 
 ## Archive Directories
 

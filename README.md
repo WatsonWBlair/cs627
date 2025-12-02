@@ -9,7 +9,6 @@ This project implements an encoder-decoder architecture that aligns multiple mod
 - **Cross-modal understanding**: Text, audio, and video share the same semantic representation
 - **Efficient training**: 100x cheaper than full fine-tuning (only train small MLP adapters)
 - **Modular design**: Add new modalities without retraining existing encoders
-- **Scientific rigor**: Clear separation between encoding, inference, and decoding enables isolated evaluation
 
 **Key Innovation**: BERT-style architecture (Pretrained Model + MLP Adapter) trained with Cross-Modal Momentum Contrastive Learning (MoCo).
 
