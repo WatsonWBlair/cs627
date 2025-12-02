@@ -15,30 +15,37 @@ This project implements an encoder-decoder architecture that aligns multiple mod
 
 ## Quick Start
 
-### 1. Installation
+### Local Setup
 
 ```bash
-# Install SONAR and fairseq2 (requires conda)
-sudo conda install -c conda-forge libsndfile sonar-space fairseq2
-
 # Install Python dependencies
 pip install -r requirements.txt
 
 # Install CMU-MultimodalSDK for dataset access
 git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
 cd CMU-MultimodalSDK && pip install .
-```
 
-**Note**: If fairseq2 doesn't have a build for your system, [compile from source](https://github.com/facebookresearch/fairseq2/blob/main/INSTALL_FROM_SOURCE.md).
-
-### 2. Train Encoders
-
-```bash
 # Train text, audio, and video encoders on CMU-MOSI dataset
 python src/Training/train_encoder_alignment.py
 ```
 
 See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
+
+### Cloud GPU Setup (Recommended)
+
+For faster training on cloud GPU instances (AWS, GCP, Azure, Lambda Labs):
+
+```bash
+# Clone repository on cloud instance
+git clone https://github.com/WatsonWBlair/cs627.git
+cd cs627
+
+# Run automated setup and training
+chmod +x setup_and_train.sh
+./setup_and_train.sh
+```
+
+See [Cloud Deployment Guide](CLOUD_DEPLOYMENT.md) for complete cloud setup instructions.
 
 ### 3. Use Trained Encoders
 
@@ -70,9 +77,9 @@ Text/Audio/Video → Pretrained Encoder → MLP Adapter → Semantic Vector (102
 ```
 
 **Current Encoders**:
-- **Text**: `facebook/bart-base` + Adapter → `text_2_vec.py`
-- **Audio**: `openai/whisper-small` + Adapter → `wav_2_vec.py`
-- **Video**: `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
+- **Text**: `Text_to_Vec` - `facebook/bart-base` + Adapter → `text_2_vec.py`
+- **Audio**: `Audio_to_Vec` - `openai/whisper-small` + Adapter → `wav_2_vec.py`
+- **Image**: `Image_to_Vec` - `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
 
 See [Encoder README](src/Encoders/README.md) for adding new encoders.
 
@@ -85,9 +92,9 @@ Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
 ```
 
 **Current Decoders**:
-- **Text**: Adapter + `facebook/bart-base` → `vec_2_text.py`
-- **Image**: Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py`
-- **Audio**: Adapter + `suno/bark-small` → `vec_2_audio.py`
+- **Text**: `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_2_text.py` (Fully implemented)
+- **Image**: `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py` (EXPERIMENTAL)
+- **Audio**: `Vec_to_Audio` - Adapter + `suno/bark-small` → `vec_2_audio.py` (EXPERIMENTAL)
 
 See [Decoder README](src/Decoders/README.md) for adding new decoders.
 
@@ -143,6 +150,7 @@ cs627/
 ## Documentation
 
 - **[CLAUDE.md](CLAUDE.md)**: Comprehensive project guide (architecture, setup, workflows)
+- **[CLOUD_DEPLOYMENT.md](CLOUD_DEPLOYMENT.md)**: Cloud GPU deployment guide (AWS, GCP, Azure)
 - **[src/Encoders/README.md](src/Encoders/README.md)**: How to create and train encoders
 - **[src/Decoders/README.md](src/Decoders/README.md)**: How to create and train decoders
 - **[src/Training/README.md](src/Training/README.md)**: Training methodology and best practices
@@ -169,11 +177,11 @@ cs627/
 ## Research
 
 This project builds on:
-- **Meta's Large Concept Model** (LCM) [Paper 7]
-- **SONAR** sentence-level multimodal representations [Paper 8]
 - **Cross-Modal Momentum Contrastive Learning** [IEEE 2024]
 - **MoCo** (Momentum Contrast) [CVPR 2020]
 - **BERT-style Adapter Architecture** (APE) [Apple, Paper 11]
+- **Meta's Large Concept Model** (LCM) - conceptual inspiration
+- **SONAR** - conceptual inspiration for multimodal semantic spaces
 
 See `litrature/` directory for full paper collection and `litrature/Paper.txt` for the companion research paper.
 
@@ -185,9 +193,8 @@ This is a research project for CS627. For questions or contributions, please ref
 
 - [CMU-MOSI Dataset](http://multicomp.cs.cmu.edu/resources/cmu-mosi-dataset/)
 - [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK)
-- [MultiBench](https://github.com/pliang279/MultiBench)
-- [Meta SONAR](https://github.com/facebookresearch/SONAR)
-- [fairseq2](https://github.com/facebookresearch/fairseq2)
+- [HuggingFace Transformers](https://huggingface.co/transformers/)
+- [PyTorch](https://pytorch.org/)
 
 ---
 

@@ -22,6 +22,37 @@ Key components:
 """
 
 
+class MultiModalWrapper(nn.Module):
+    """
+    Wrapper module that contains multiple encoder models in a ModuleDict.
+
+    This allows the HuggingFace Trainer to properly handle a dictionary of models
+    by wrapping them in an nn.Module container that supports .to(device), .train(), etc.
+
+    Args:
+        encoders: Dictionary of encoder models {'text': encoder, 'audio': encoder, ...}
+    """
+    def __init__(self, encoders: Dict[str, nn.Module]):
+        super().__init__()
+        self.encoders = nn.ModuleDict(encoders)
+
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """
+        Encode each modality with its corresponding encoder.
+
+        Args:
+            inputs: Dict of inputs {'text': tensor, 'audio': tensor, ...}
+
+        Returns:
+            Dict of embeddings {'text': tensor, 'audio': tensor, ...}
+        """
+        outputs = {}
+        for modality, data in inputs.items():
+            if modality in self.encoders:
+                outputs[modality] = self.encoders[modality](data)
+        return outputs
+
+
 class Contrast(Trainer):
     """
     Cross-Modal Momentum Contrastive Learning Trainer
@@ -60,7 +91,17 @@ class Contrast(Trainer):
         use_momentum: bool = True,
         **kwargs
     ):
-        super().__init__(model=model, **kwargs)
+        # Store original model (dict or module)
+        self.is_multimodal = isinstance(model, dict)
+        self.original_model = model
+
+        # Wrap dict of models in MultiModalWrapper for HuggingFace Trainer compatibility
+        if self.is_multimodal:
+            wrapped_model = MultiModalWrapper(model)
+        else:
+            wrapped_model = model
+
+        super().__init__(model=wrapped_model, **kwargs)
 
         self.momentum_coef = momentum
         self.temperature = temperature
@@ -70,10 +111,10 @@ class Contrast(Trainer):
 
         # Initialize momentum encoder
         if self.use_momentum:
-            if isinstance(model, dict):
+            if self.is_multimodal:
                 # Multiple encoders (multi-modal)
                 self.momentum_encoder = {
-                    key: copy.deepcopy(encoder) for key, encoder in model.items()
+                    key: copy.deepcopy(encoder) for key, encoder in self.original_model.items()
                 }
                 # Freeze momentum encoder parameters
                 for encoder in self.momentum_encoder.values():
@@ -81,15 +122,14 @@ class Contrast(Trainer):
                         param.requires_grad = False
             else:
                 # Single encoder
-                self.momentum_encoder = copy.deepcopy(model)
+                self.momentum_encoder = copy.deepcopy(self.original_model)
                 for param in self.momentum_encoder.parameters():
                     param.requires_grad = False
 
-            # Initialize memory queue
+            # Initialize memory queue (stored as regular tensors, not buffers)
             # Queue stores encoded features from momentum encoder (K x D)
-            self.register_buffer("queue", torch.randn(queue_size, embed_dim))
-            self.queue = F.normalize(self.queue, dim=1)
-            self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
+            self.queue = F.normalize(torch.randn(queue_size, embed_dim), dim=1)
+            self.queue_ptr = torch.zeros(1, dtype=torch.long)
 
         print(f"Contrast Trainer initialized:")
         print(f"  Momentum: {momentum}")
@@ -110,11 +150,11 @@ class Contrast(Trainer):
         if not self.use_momentum:
             return
 
-        if isinstance(self.model, dict):
+        if self.is_multimodal:
             # Update each encoder in the dict
-            for key in self.model.keys():
+            for key in self.original_model.keys():
                 for param_q, param_k in zip(
-                    self.model[key].parameters(),
+                    self.original_model[key].parameters(),
                     self.momentum_encoder[key].parameters()
                 ):
                     param_k.data = (
@@ -124,7 +164,7 @@ class Contrast(Trainer):
         else:
             # Update single encoder
             for param_q, param_k in zip(
-                self.model.parameters(),
+                self.original_model.parameters(),
                 self.momentum_encoder.parameters()
             ):
                 param_k.data = (
@@ -137,6 +177,8 @@ class Contrast(Trainer):
         """
         Update memory queue with new encoded features (FIFO)
 
+        Handles variable batch sizes (last batch can be smaller) and queue wrapping.
+
         Args:
             keys: Encoded features from momentum encoder (batch_size x embed_dim)
         """
@@ -146,14 +188,15 @@ class Contrast(Trainer):
         batch_size = keys.shape[0]
         ptr = int(self.queue_ptr)
 
-        # Ensure queue size is divisible by batch size (optional check)
-        if self.queue_size % batch_size != 0:
-            # Adjust to avoid overflow
-            if ptr + batch_size > self.queue_size:
-                ptr = 0
-
-        # Replace oldest entries in queue
-        self.queue[ptr:ptr + batch_size] = keys
+        # Handle wrapping around queue end
+        if ptr + batch_size > self.queue_size:
+            # Split into two parts if batch wraps around the queue
+            remaining = self.queue_size - ptr
+            self.queue[ptr:] = keys[:remaining]
+            self.queue[:batch_size - remaining] = keys[remaining:]
+        else:
+            # Normal case: batch fits without wrapping
+            self.queue[ptr:ptr + batch_size] = keys
 
         # Move pointer
         ptr = (ptr + batch_size) % self.queue_size
@@ -256,7 +299,7 @@ class Contrast(Trainer):
 
     def _compute_multimodal_loss(
         self,
-        model: Dict[str, nn.Module],
+        model: Union[nn.Module, Dict[str, nn.Module]],
         inputs: Dict[str, torch.Tensor],
         return_outputs: bool = False
     ):
@@ -266,7 +309,7 @@ class Contrast(Trainer):
         Aligns multiple modalities (text, audio, video) in shared semantic space
 
         Args:
-            model: Dict of encoders {'text': encoder, 'audio': encoder, ...}
+            model: Wrapped model or dict of encoders
             inputs: Dict of inputs {'text': tensor, 'audio': tensor, ...}
             return_outputs: Whether to return embeddings
 
@@ -274,11 +317,13 @@ class Contrast(Trainer):
             loss: Combined cross-modal loss
             outputs: Dict of embeddings (if return_outputs=True)
         """
-        device = next(iter(model.values())).parameters().__next__().device if isinstance(model, dict) else next(model.parameters()).device
+        # Use original_model (the dict of encoders) instead of wrapped model
+        encoders = self.original_model if self.is_multimodal else {('default', self.original_model)}
+        device = next(iter(encoders.values())).parameters().__next__().device
 
         # Encode with main model (gradients enabled)
         embeddings = {}
-        for modality, encoder in model.items():
+        for modality, encoder in encoders.items():
             if modality in inputs:
                 embeddings[modality] = encoder(inputs[modality])
 

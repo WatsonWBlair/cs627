@@ -21,25 +21,25 @@ Semantic-Vector Space → MLP Adapter → Pretrained Decoder → Output Modality
 ### Text Decoder (`vec_2_text.py`)
 - **Class**: `Vec_to_Text`
 - **Base Model**: `facebook/bart-base`
-- **Tokenizer**: `BertTokenizer`
+- **Tokenizer**: `BartTokenizer`
 - **Purpose**: Converts semantic vectors back to natural language text
 - **Architecture**: Semantic Vector → Adapter → BART decoder → Text
-- **Note**: This is the inverse of `text_2_vec.py`
+- **Status**: Fully implemented
 
 ### Image Decoder (`vec_2_img.py`)
-- **Class**: `SEED`
+- **Class**: `Vec_to_Image`
 - **Base Model**: `CompVis/stable-diffusion-v1-4`
 - **Pipeline**: `StableDiffusionPipeline`
 - **Purpose**: Generates images from semantic vectors
 - **Architecture**: Semantic Vector → Adapter (replaces text encoder) → Stable Diffusion → Image
-- **Note**: Uses Adapter in place of the standard text encoder
+- **Status**: EXPERIMENTAL - Adapter integration with Stable Diffusion needs validation
 
 ### Audio Decoder (`vec_2_audio.py`)
-- **Class**: `Vec_2_Speech`
+- **Class**: `Vec_to_Audio`
 - **Base Model**: `suno/bark-small` (text-to-speech)
 - **Purpose**: Generates speech audio from semantic vectors
-- **Architecture**: Semantic Vector → Adapter → TTS Pipeline → Audio
-- **Output Format**: WAV file
+- **Architecture**: Semantic Vector → Adapter → Text (intermediate) → TTS Pipeline → Audio
+- **Status**: EXPERIMENTAL - Semantic vector to text conversion not yet implemented
 
 ## How to Add a New Decoder
 
@@ -54,48 +54,16 @@ This encoder will be used for:
 
 ### Step 2: Create the Decoder Class
 
-Create a new file `vec_2_{modality}.py` with the following structure:
+Use the boilerplate in `decoder_boilerplate.py` as your template. Key structure:
 
 ```python
-import torch
-from transformers import <YourGenerativeModel>, <YourProcessor>
-from utils.Adapter import Adapter
-
-BASE_MODEL = "huggingface/model-name"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-class Vec_to_YourModality(torch.nn.Module):
-    def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
-        super(Vec_to_YourModality, self).__init__()
-
-        # 1. Initialize processor/tokenizer
-        self.processor = YourProcessor.from_pretrained(base_model, max_length=token_length)
-
-        # 2. Create MLP adapter
-        # The adapter translates FROM semantic space TO decoder input format
-        adapter = Adapter(
-            prefix=f"{base_model}_dec",
-            input_length=token_length,  # Semantic vector dimension
-            output_length=token_length,  # Decoder input dimension
-            hidden_size=200,
-            hidden_layers=2
-        )
-
-        # 3. Combine adapter with pretrained decoder
-        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-            adapter,      # First: adapter processes semantic vector
-            base_model    # Second: decoder generates output
-        )
-
-    def forward(self, input_vector, device: str = DEVICE):
-        # 1. Pass semantic vector through adapter + decoder
-        decoded_output = self.model.generate(input_vector)
-
-        # 2. Convert to final modality format
-        final_output = self.processor.decode(decoded_output, skip_special_tokens=True)
-
-        return final_output
+class Vec_to_{Modality}(torch.nn.Module):
+    def __init__(self, base_model: str = BASE_MODEL, output_dim: int = 1024) -> None:
+        self.adapter: Adapter = Adapter(...)
+        self.decoder: DecoderModel = DecoderModel.from_pretrained(base_model)
 ```
+
+See `decoder_boilerplate.py` for full implementation template.
 
 ### Alternative: Pipeline-Based Decoders
 

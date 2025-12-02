@@ -1,13 +1,11 @@
-fairseq2
-sonar-space
-tensor
 transformers
-mteb
-sentence-transformers
 datasets
 evaluate
 accelerate
 trl
+mteb
+sentence-transformers
+torch
 h5py
 validators
 tqdm
