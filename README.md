@@ -77,9 +77,9 @@ Text/Audio/Video → Pretrained Encoder → MLP Adapter → Semantic Vector (102
 ```
 
 **Current Encoders**:
-- **Text**: `facebook/bart-base` + Adapter → `text_2_vec.py`
-- **Audio**: `openai/whisper-small` + Adapter → `wav_2_vec.py`
-- **Video**: `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
+- **Text**: `Text_to_Vec` - `facebook/bart-base` + Adapter → `text_2_vec.py`
+- **Audio**: `Audio_to_Vec` - `openai/whisper-small` + Adapter → `wav_2_vec.py`
+- **Image**: `Image_to_Vec` - `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
 
 See [Encoder README](src/Encoders/README.md) for adding new encoders.
 
@@ -92,9 +92,9 @@ Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
 ```
 
 **Current Decoders**:
-- **Text**: Adapter + `facebook/bart-base` → `vec_2_text.py`
-- **Image**: Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py`
-- **Audio**: Adapter + `suno/bark-small` → `vec_2_audio.py`
+- **Text**: `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_2_text.py` (Fully implemented)
+- **Image**: `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py` (EXPERIMENTAL)
+- **Audio**: `Vec_to_Audio` - Adapter + `suno/bark-small` → `vec_2_audio.py` (EXPERIMENTAL)
 
 See [Decoder README](src/Decoders/README.md) for adding new decoders.
 

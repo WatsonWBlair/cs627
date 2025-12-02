@@ -1,20 +1,28 @@
 import torch
 from transformers import ViTImageProcessor, VisionEncoderDecoderModel
-
+from typing import Union
 from utils.Adapter import Adapter
 
-BASE_MODEL = "nlpconnect/vit-gpt2-image-captioning"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+BASE_MODEL: str = "nlpconnect/vit-gpt2-image-captioning"
+DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Image_to_Vec(torch.nn.Module):
+    """
+    Image encoder using ViT + MLP Adapter.
+
+    Args:
+        base_model: HuggingFace ViT model identifier (default: "nlpconnect/vit-gpt2-image-captioning")
+        token_length: Output dimension (default: 1024)
+    """
+
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Image_to_Vec, self).__init__()
 
-        self.processor = ViTImageProcessor.from_pretrained(base_model)
+        self.processor: ViTImageProcessor = ViTImageProcessor.from_pretrained(base_model)
 
         # Create adapter with proper parameters
-        self.adapter = Adapter(
+        self.adapter: Adapter = Adapter(
             prefix=f"{base_model.replace('/', '_')}_image_enc",
             input_length=token_length,
             output_length=token_length,
@@ -22,11 +30,11 @@ class Image_to_Vec(torch.nn.Module):
             hidden_layers=2
         )
 
-        self.model = VisionEncoderDecoderModel.from_pretrained(base_model)
+        self.model: VisionEncoderDecoderModel = VisionEncoderDecoderModel.from_pretrained(base_model)
         # Note: The adapter integration with VisionEncoderDecoderModel may need adjustment
         # based on how you want to integrate it into the pipeline
 
-    def forward(self, input_img, *, device: str = DEVICE):
+    def forward(self, input_img: Union[object, list], *, device: str = DEVICE) -> torch.Tensor:
         # Process image input
         pixel_values = self.processor(input_img, return_tensors="pt").pixel_values.to(device)
 

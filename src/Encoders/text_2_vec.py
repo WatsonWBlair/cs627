@@ -1,23 +1,31 @@
 import torch
 from transformers import BartModel, BartTokenizer
-
+from typing import Union, Optional
 from utils.Adapter import Adapter
 
-BASE_MODEL = "facebook/bart-base"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+BASE_MODEL: str = "facebook/bart-base"
+DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Pretrained Encoder + MLP Adapter architecture for semantic space alignment
+
 class Text_to_Vec(torch.nn.Module):
+    """
+    Text encoder using BART + MLP Adapter.
+
+    Args:
+        base_model: HuggingFace BART model identifier (default: "facebook/bart-base")
+        token_length: Maximum sequence length (default: 1024)
+    """
+
     def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
         super(Text_to_Vec, self).__init__()
-        self.tokenizer = BartTokenizer.from_pretrained(base_model)
-        self.max_length = token_length
+        self.tokenizer: BartTokenizer = BartTokenizer.from_pretrained(base_model)
+        self.max_length: int = token_length
 
         # Load pretrained BART encoder
-        self.encoder = BartModel.from_pretrained(base_model)
+        self.encoder: BartModel = BartModel.from_pretrained(base_model)
 
         # Create adapter with proper parameters
-        self.adapter = Adapter(
+        self.adapter: Adapter = Adapter(
             prefix=f"{base_model.replace('/', '_')}_text_enc",
             input_length=token_length,
             output_length=token_length,
@@ -25,7 +33,13 @@ class Text_to_Vec(torch.nn.Module):
             hidden_layers=2
         )
 
-    def forward(self, input_text, max_length: int = None, device: str = DEVICE):
+    def forward(
+        self,
+        input_text: Union[str, list[str]],
+        *,
+        max_length: Optional[int] = None,
+        device: str = DEVICE
+    ) -> torch.Tensor:
         """
         Forward pass: tokenize -> encode with BART -> project with adapter
 

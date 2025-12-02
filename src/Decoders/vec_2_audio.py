@@ -1,34 +1,86 @@
+"""
+EXPERIMENTAL: This decoder is not fully implemented.
+
+Status: Under Development
+Issues:
+- Adapter integration with TTS pipeline needs validation
+- Training loop not tested
+- Output format needs verification
+
+DO NOT USE IN PRODUCTION.
+"""
+
 import torch
-import tensor
-from diffusers import StableDiffusionPipeline
-from torch import Generator
 from transformers import pipeline
-import scipy
-
+from typing import Union, Dict
 from utils.Adapter import Adapter
-# load a fine-tuned image captioning model and corresponding tokenizer and image processor
+
+BASE_MODEL: str = "suno/bark-small"
+DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+class Vec_to_Audio(torch.nn.Module):
+    """
+    EXPERIMENTAL: Audio decoder using Adapter + Bark TTS.
 
-BASE_MODEL = "CompVis/stable-diffusion-v1-4"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    Architecture: Semantic Vector → Adapter → Text → Bark TTS → Audio
 
-class Vec_2_Speech():
-    def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
-        super(Vec_2_Speech, self).__init__()
+    Note: This is a two-stage process:
+    1. Semantic vector → text (using text decoder or direct projection)
+    2. Text → speech (using Bark TTS)
 
-        synthesiser = pipeline("text-to-speech", "suno/bark-small")
-        synthesiser.
+    Args:
+        base_model: HuggingFace TTS model identifier (default: "suno/bark-small")
+        output_dim: Semantic vector dimension (default: 1024)
+    """
 
-        speech = synthesiser("Hello, my dog is cooler than you!", forward_params={"do_sample": True})
+    def __init__(self, base_model: str = BASE_MODEL, output_dim: int = 1024) -> None:
+        super(Vec_to_Audio, self).__init__()
 
-        scipy.io.wavfile.write("bark_out.wav", rate=speech["sampling_rate"], data=speech["audio"])
+        # Adapter: translates FROM semantic space TO intermediate representation
+        self.adapter: Adapter = Adapter(
+            prefix=f"{base_model.replace('/', '_')}_dec",
+            input_length=output_dim,  # Semantic vector size
+            output_length=output_dim,  # Intermediate representation
+            hidden_size=200,
+            hidden_layers=2
+        )
 
-        self.generator = Generator(device=DEVICE)
-        self.safe_pipeline = StableDiffusionPipeline.from_pretrained(base_model, safety_checker=None)
-        self.safe_pipeline.text_encoder = Adapter(token_length=token_length, hidden_size=200, hidden_layers=2)
-    
+        # Text-to-Speech pipeline
+        # Note: This is a simplified implementation
+        # A proper decoder would project semantic vector → text embeddings → TTS
+        self.tts_pipeline: pipeline = pipeline("text-to-speech", base_model)
 
-    def forward(self, semantic_vector: tensor.Tensor, device: str = DEVICE):
-        output = self.safe_pipeline.to(device)(prompt=semantic_vector, generator=self.generator).images[0]
-        return output
+        print(f"[Vec_to_Audio] EXPERIMENTAL decoder initialized with {base_model}")
+        print("[Vec_to_Audio] WARNING: This decoder is incomplete and not ready for use")
+
+    def forward(self, semantic_vector: torch.Tensor, *, device: str = DEVICE) -> Union[torch.Tensor, Dict]:
+        """
+        Generate audio from semantic vector.
+
+        Args:
+            semantic_vector: Tensor of shape (batch_size, output_dim)
+            device: Device to run on
+
+        Returns:
+            Audio waveform tensor or dictionary with audio data
+
+        Note: Current implementation is incomplete.
+        TODO: Implement proper semantic vector → text → speech pipeline
+        """
+        # Ensure input is on correct device
+        semantic_vector = semantic_vector.to(device)
+        self.adapter = self.adapter.to(device)
+
+        # Project semantic vector through adapter
+        intermediate = self.adapter(semantic_vector)
+
+        # TODO: Implement conversion from semantic vector to text
+        # For now, this is a placeholder that would need:
+        # 1. Text decoder to convert semantic_vector → text
+        # 2. TTS to convert text → speech
+
+        raise NotImplementedError(
+            "Vec_to_Audio decoder is not yet fully implemented. "
+            "Need to implement: semantic_vector → text → speech pipeline."
+        )
