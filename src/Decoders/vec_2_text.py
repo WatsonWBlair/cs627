@@ -4,6 +4,7 @@ from typing import Union
 from utils.Adapter import Adapter
 
 BASE_MODEL: str = "facebook/bart-base"
+BART_BASE_HIDDEN_DIM: int = 768  # BART-base hidden dimension
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -13,26 +14,26 @@ class Vec_to_Text(torch.nn.Module):
 
     Args:
         base_model: HuggingFace BART model identifier (default: "facebook/bart-base")
-        output_dim: Semantic vector dimension (default: 1024)
+        input_dim: Semantic vector dimension (default: 1024)
     """
 
-    def __init__(self, base_model: str = BASE_MODEL, output_dim: int = 1024) -> None:
+    def __init__(self, base_model: str = BASE_MODEL, input_dim: int = 1024) -> None:
         super(Vec_to_Text, self).__init__()
 
         # Tokenizer for decoding text
         self.tokenizer: BartTokenizer = BartTokenizer.from_pretrained(base_model)
 
-        # Adapter: translates FROM semantic space TO decoder input
+        # Pretrained BART decoder
+        self.decoder: BartForConditionalGeneration = BartForConditionalGeneration.from_pretrained(base_model)
+
+        # Adapter: translates FROM semantic space (1024) TO BART embedding space (768)
         self.adapter: Adapter = Adapter(
             prefix=f"{base_model.replace('/', '_')}_dec",
-            input_length=output_dim,  # Semantic vector size
-            output_length=output_dim,  # Decoder input size
+            input_length=input_dim,  # Semantic vector size (1024)
+            output_length=BART_BASE_HIDDEN_DIM,  # BART embedding size (768)
             hidden_size=200,
             hidden_layers=2
         )
-
-        # Pretrained BART decoder
-        self.decoder: BartForConditionalGeneration = BartForConditionalGeneration.from_pretrained(base_model)
 
         print(f"[Vec_to_Text] Decoder initialized with {base_model}")
 

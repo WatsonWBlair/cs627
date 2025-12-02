@@ -189,6 +189,7 @@ events.out.tfevents.*
 
 # Data directories (datasets should be downloaded, not tracked)
 data/
+!data/validation
 dataset/
 datasets/
 /src/Training/Data_Wrangling/datasets/
@@ -286,3 +287,4 @@ instance/
 # mkdocs
 /site
 .*
+!data\validation

@@ -4,6 +4,7 @@ from typing import Union
 from utils.Adapter import Adapter
 
 BASE_MODEL: str = "nlpconnect/vit-gpt2-image-captioning"
+VIT_BASE_HIDDEN_DIM: int = 768  # ViT-base encoder output dimension
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -13,36 +14,38 @@ class Image_to_Vec(torch.nn.Module):
 
     Args:
         base_model: HuggingFace ViT model identifier (default: "nlpconnect/vit-gpt2-image-captioning")
-        token_length: Output dimension (default: 1024)
+        output_dim: Semantic vector space dimension (default: 1024)
     """
 
-    def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
+    def __init__(self, base_model: str = BASE_MODEL, output_dim: int = 1024) -> None:
         super(Image_to_Vec, self).__init__()
 
         self.processor: ViTImageProcessor = ViTImageProcessor.from_pretrained(base_model)
 
-        # Create adapter with proper parameters
+        self.model: VisionEncoderDecoderModel = VisionEncoderDecoderModel.from_pretrained(base_model)
+
+        # Create adapter: ViT hidden dim (768) → Semantic vector space (1024)
         self.adapter: Adapter = Adapter(
             prefix=f"{base_model.replace('/', '_')}_image_enc",
-            input_length=token_length,
-            output_length=token_length,
+            input_length=VIT_BASE_HIDDEN_DIM,
+            output_length=output_dim,
             hidden_size=200,
             hidden_layers=2
         )
-
-        self.model: VisionEncoderDecoderModel = VisionEncoderDecoderModel.from_pretrained(base_model)
-        # Note: The adapter integration with VisionEncoderDecoderModel may need adjustment
-        # based on how you want to integrate it into the pipeline
 
     def forward(self, input_img: Union[object, list], *, device: str = DEVICE) -> torch.Tensor:
         # Process image input
         pixel_values = self.processor(input_img, return_tensors="pt").pixel_values.to(device)
 
-        # Generate caption/features from vision encoder
-        output = self.model.generate(pixel_values)[0]
+        # Extract continuous embeddings from vision encoder (not discrete tokens)
+        encoder_outputs = self.model.encoder(pixel_values)
+
+        # Get last hidden state and apply mean pooling
+        hidden_states = encoder_outputs.last_hidden_state  # Shape: (batch, seq_len, hidden_dim)
+        pooled_output = hidden_states.mean(dim=1)  # Shape: (batch, hidden_dim)
 
         # Convert to semantic vector via adapter
-        semantic_vector = self.adapter(output)
+        semantic_vector = self.adapter(pooled_output.to(device))
 
         return semantic_vector
         

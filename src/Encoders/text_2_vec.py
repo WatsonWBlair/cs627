@@ -4,6 +4,7 @@ from typing import Union, Optional
 from utils.Adapter import Adapter
 
 BASE_MODEL: str = "facebook/bart-base"
+BART_BASE_HIDDEN_DIM: int = 768  # BART-base hidden dimension
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -13,22 +14,23 @@ class Text_to_Vec(torch.nn.Module):
 
     Args:
         base_model: HuggingFace BART model identifier (default: "facebook/bart-base")
-        token_length: Maximum sequence length (default: 1024)
+        max_length: Maximum sequence length (default: 1024)
+        output_dim: Semantic vector space dimension (default: 1024)
     """
 
-    def __init__(self, base_model: str = BASE_MODEL, token_length: int = 1024) -> None:
+    def __init__(self, base_model: str = BASE_MODEL, max_length: int = 1024, output_dim: int = 1024) -> None:
         super(Text_to_Vec, self).__init__()
         self.tokenizer: BartTokenizer = BartTokenizer.from_pretrained(base_model)
-        self.max_length: int = token_length
+        self.max_length: int = max_length
 
         # Load pretrained BART encoder
         self.encoder: BartModel = BartModel.from_pretrained(base_model)
 
-        # Create adapter with proper parameters
+        # Adapter: translates FROM BART embedding space (768) TO semantic space (1024)
         self.adapter: Adapter = Adapter(
             prefix=f"{base_model.replace('/', '_')}_text_enc",
-            input_length=token_length,
-            output_length=token_length,
+            input_length=BART_BASE_HIDDEN_DIM,  # BART hidden dim (768)
+            output_length=output_dim,  # Semantic vector size (1024)
             hidden_size=200,
             hidden_layers=2
         )
