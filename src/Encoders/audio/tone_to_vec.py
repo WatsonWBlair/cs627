@@ -80,6 +80,7 @@ class Tone_to_Vec(torch.nn.Module):
         input_values = self.feature_extractor(
             input_audio,
             sampling_rate=sampling_rate,
+            padding=True,
             return_tensors="pt"
         ).input_values.to(device)
 

@@ -13,7 +13,7 @@ DO NOT USE IN PRODUCTION.
 import torch
 from transformers import pipeline
 from typing import Union, Dict
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 BASE_MODEL: str = "suno/bark-small"
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
