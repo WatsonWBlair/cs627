@@ -15,6 +15,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
@@ -28,6 +36,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
+    - name: Cache HuggingFace models
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/huggingface
+        key: ${{ runner.os }}-huggingface-models-v1
+        restore-keys: |
+          ${{ runner.os }}-huggingface-models-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -40,6 +56,12 @@ jobs:
         python -m pytest smoke_test.py -v --tb=short
       env:
         PYTHONPATH: ${{ github.workspace }}
+
+    - name: Clean up HuggingFace cache
+      if: always()
+      run: |
+        rm -rf ~/.cache/huggingface/hub/models--*
+        df -h
 
     - name: Check test results
       if: failure()
@@ -71,10 +93,8 @@ jobs:
         import sys
         sys.path.insert(0, 'src')
 
-        # Import production encoders
-        from Encoders.text_2_vec import Text_to_Vec
-        from Encoders.wav_2_vec import Audio_to_Vec
-        from Encoders.img_2_vec import Image_to_Vec
+        # Import production encoders (modality-based structure)
+        from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 
         print('All production encoders imported successfully')
         "
@@ -85,9 +105,7 @@ jobs:
         import sys
         sys.path.insert(0, 'src')
 
-        from Encoders.text_2_vec import Text_to_Vec
-        from Encoders.wav_2_vec import Audio_to_Vec
-        from Encoders.img_2_vec import Image_to_Vec
+        from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 
         # Verify adapters exist
         encoders = {
