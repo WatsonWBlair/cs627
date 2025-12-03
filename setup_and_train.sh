@@ -302,22 +302,20 @@ if [ "$SKIP_DATA" = false ]; then
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Skipping data download/preprocessing"
         else
-            log_info "Downloading CMU-MOSI dataset (this may take a while)..."
+            log_info "Downloading CMU-MOSI metadata (this may take a while)..."
             python3 -c "
-from src.Training.Data_Wrangling.mosi_dataset import download_mosi, preprocess_mosi
-download_mosi('$DATA_PATH')
-preprocess_mosi('$DATA_PATH')
+from src.Training.Data_Wrangling.mosi_dataset import download_mosi
+download_mosi('$DATA_PATH/mosi/')
 "
-            log_success "Dataset downloaded and preprocessed"
+            log_success "Dataset metadata downloaded"
         fi
     else
-        log_info "Downloading CMU-MOSI dataset (this may take a while)..."
+        log_info "Downloading CMU-MOSI metadata (this may take a while)..."
         python3 -c "
-from src.Training.Data_Wrangling.mosi_dataset import download_mosi, preprocess_mosi
-download_mosi('$DATA_PATH')
-preprocess_mosi('$DATA_PATH')
+from src.Training.Data_Wrangling.mosi_dataset import download_mosi
+download_mosi('$DATA_PATH/mosi/')
 "
-        log_success "Dataset downloaded and preprocessed"
+        log_success "Dataset metadata downloaded"
     fi
 
     echo ""
@@ -359,7 +357,7 @@ EOF
     echo ""
 
     # Start training (with tee to show output and save to log)
-    python3 src/Training/train_encoder_alignment.py 2>&1 | tee "$LOG_FILE"
+    python3 src/Training/train_raw_encoders.py 2>&1 | tee "$LOG_FILE"
 
     TRAIN_EXIT_CODE=${PIPESTATUS[0]}
 
@@ -418,6 +416,6 @@ fi
 log_success "All done! Your encoders are ready for use."
 echo ""
 echo "To use the trained encoders:"
-echo "  python3 -c \"from src.Encoders.text_2_vec import Text_to_Vec; encoder = Text_to_Vec()\""
+echo "  python3 -c \"from src.Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec; encoder = Text_to_Vec()\""
 echo ""
 echo "================================================================================"

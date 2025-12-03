@@ -46,11 +46,20 @@ Convert modalities (text, audio, image) into semantic vectors.
 - MLP Adapter (simple multi-layer perceptron) translates to Semantic-Vector space
 - This design is highly performant, less prone to overfitting, 2 orders of magnitude cheaper to train, and more robust to distribution shift
 
-**Key Files**:
-- `text_2_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter - Production
-- `wav_2_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter - Production
-- `img_2_vec.py` - Image encoder (`Image_to_Vec`) using `nlpconnect/vit-gpt2-image-captioning` + Adapter - Production
+**Directory Structure** (organized by modality):
+- `text/` - Text encoders (semantic features)
+  - `semantic_to_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter - PRODUCTION
+- `audio/` - Audio encoders (waveform, tone, etc.)
+  - `waveform_to_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter - PRODUCTION
+- `image/` - Image encoders (visual features)
+  - `visual_to_vec.py` - Image encoder (`Image_to_Vec`) using `nlpconnect/vit-gpt2-image-captioning` + Adapter - PRODUCTION
+- `video/` - Video encoders (motion, temporal features)
 - `encoder_boilerplate.py` - Template for creating new encoders
+
+**Imports** (backward compatible):
+```python
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
+```
 
 **Current Models**:
 - BART (facebook/bart-base) - Text encoding and decoding
@@ -68,11 +77,20 @@ Convert semantic vectors back to modalities.
 
 **Important**: To train a Decoder, an Encoder of the same modality must already exist.
 
-**Key Files**:
-- `vec_2_text.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - Production
-- `vec_2_audio.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
-- `vec_2_img.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
+**Directory Structure** (organized by modality):
+- `text/` - Text decoders (semantic to text)
+  - `vec_to_semantic.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - PRODUCTION
+- `audio/` - Audio decoders (vector to waveform, etc.)
+  - `vec_to_waveform.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
+- `image/` - Image decoders (vector to visual)
+  - `vec_to_visual.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
+- `video/` - Video decoders (vector to motion, etc.)
 - `decoder_boilerplate.py` - Template for creating new decoders
+
+**Imports** (backward compatible):
+```python
+from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image
+```
 
 #### 3. Adapter Module (`src/utils/Adapter.py`)
 Neural network bridge between pretrained models and shared semantic space.
@@ -104,6 +122,15 @@ Uses **Cross-Modal Momentum Contrastive Learning** (based on [1]).
 
 **Input Format**: `[(query, positive, negative), ...]`
 
+#### Raw Encoder Training (`src/Training/train_raw_encoders.py`)
+Training pipeline for encoders using raw multimodal data from CMU-MOSI:
+
+- **Dataset**: `MOSIRawVideoDataset` with lazy loading
+- **Collate Function**: `collate_fn_raw_video()` loads audio waveforms (via librosa) and video frames (via PIL) just-in-time
+- **Encoders**: Text_to_Vec, Audio_to_Vec, Image_to_Vec
+- **Training**: Contrastive learning with cross-modal triplets
+- **Memory Optimization**: Lazy loading prevents RAM overflow when training on large video datasets
+
 #### Decoder Alignment
 Dual loss approach (Fig. 4 in paper):
 
@@ -130,18 +157,31 @@ Both losses measure reconstruction quality from different perspectives.
 
 ### Datasets
 
+**CMU-MOSI** (Primary Dataset): Multimodal Opinion Sentiment Intensity
+- 2,199 opinion video segments from YouTube
+- Modalities: Text transcripts, Audio waveforms (16kHz), Video frames (RGB)
+- Labels: Sentiment intensity scores
+- Dataset class: `MOSIRawVideoDataset` in `src/Training/Data_Wrangling/mosi_dataset.py`
+- Download function: `download_mosi()` downloads metadata via CMU-MultimodalSDK
+- **Data Pipeline**:
+  1. Download MOSI metadata: `download_mosi('data/cmumosi/mosi/')`
+  2. Extract videos, audio, and frames: `scripts/data_wrangling/extract_test_segments.py`
+  3. Load with dataset: `MOSIRawVideoDataset(split='train', mosi_data_path='...', audio_dir='...', video_dir='...')`
+- Returns: `{'text': str, 'audio': path, 'video': path, 'label': float, 'segment_id': str}`
+- Lazy loading: Audio/video loaded in collate function to avoid RAM overflow
+
 **MultiBench**: Comprehensive evaluation suite with 20 multimodal ML algorithms
 - Available: https://github.com/pliang279/MultiBench
 - Covers (1) data preprocessing, (2) fusion paradigms, (3) optimization objectives, (4) training procedures
 
 **Conceptual 12M**: ~12 million image-text pairs for vision-and-language pre-training
 
-**Intent Classification** (preprocessed via `preprocess_clinc_oos.py`):
+**Intent Classification** (preprocessed via `scripts/data_wrangling/preprocess_clinc_oos.py`):
 - Dataset: clinc_oos (intent classification)
 - Returns TF-IDF vectorized train/val/test splits
 - Function: `load_and_preprocess_data()` returns `(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer)`
 
-**Emotion Classification** (preprocessed via `preprocess_meld.py`):
+**Emotion Classification** (preprocessed via `scripts/data_wrangling/preprocess_meld.py`):
 - Dataset: MELD (emotion classification)
 - Returns TF-IDF vectorized train/val/test splits with label encoding
 - Function: `load_and_preprocess_data()` returns `(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer, label_encoder)`
@@ -199,9 +239,12 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 - **Image model**: `nlpconnect/vit-gpt2-image-captioning`
 - **Tokenization**: BartTokenizer for text (max_length=1024), WhisperProcessor for audio
 - **This is cross-modal work**: Covers text, audio, and image modalities
+- **Directory organization**: Encoders and decoders organized by source/target modality (text/, audio/, image/, video/)
+- **File naming convention**: `{feature}_to_vec.py` for encoders, `vec_to_{feature}.py` for decoders
 - **Class naming convention**: `{Modality}_to_Vec` for encoders, `Vec_to_{Modality}` for decoders
+- **Imports**: Use `from Encoders import Text_to_Vec` (backward compatible)
 - **All components inherit from**: `torch.nn.Module` (not Pipeline or other base classes)
-- **Multiple classes per file**: Each modality file can contain multiple encoder/decoder classes targeting different features
+- **Multiple encoders per modality**: Each modality directory can contain multiple feature-specific encoders (e.g., audio/waveform_to_vec.py, audio/tone_to_vec.py)
 - **EXPERIMENTAL status**: New encoders and decoders should be marked EXPERIMENTAL until validated
 
 ## Project Documentation
@@ -218,9 +261,70 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 - **tools/create_decoder.py** - Generator script for new decoders (marks as EXPERIMENTAL by default)
 - **tools/validate_module.py** - Functional validation for production modules (skips experimental)
 
-## Archive Directories
+## Project Structure
 
-Archive directories (`src/archive/`, `src/Encoders/*/archive/`, etc.) contain historical code and are not under active development. Do not modify archive code unless explicitly working with legacy implementations.
+### Directory Organization
+
+```
+cs627/
+├── src/                          # Source code
+│   ├── Encoders/                 # Modality to vector encoders
+│   │   ├── text/                 # Text encoders (semantic features)
+│   │   │   └── semantic_to_vec.py  # Text_to_Vec (PRODUCTION)
+│   │   ├── audio/                # Audio encoders (waveform, tone, etc.)
+│   │   │   └── waveform_to_vec.py  # Audio_to_Vec (PRODUCTION)
+│   │   ├── image/                # Image encoders (visual features)
+│   │   │   └── visual_to_vec.py    # Image_to_Vec (PRODUCTION)
+│   │   └── video/                # Video encoders (motion, temporal)
+│   ├── Decoders/                 # Vector to modality decoders
+│   │   ├── text/                 # Text decoders
+│   │   │   └── vec_to_semantic.py  # Vec_to_Text (PRODUCTION)
+│   │   ├── audio/                # Audio decoders
+│   │   │   └── vec_to_waveform.py  # Vec_to_Audio (EXPERIMENTAL)
+│   │   ├── image/                # Image decoders
+│   │   │   └── vec_to_visual.py    # Vec_to_Image (EXPERIMENTAL)
+│   │   └── video/                # Video decoders
+│   ├── Training/                 # Training scripts and data loaders
+│   │   ├── train_raw_encoders.py   # Main training script
+│   │   └── Data_Wrangling/       # Dataset loaders (MOSI, etc.)
+│   ├── Inference/                # Inference modules (chatbot, summarization)
+│   └── utils/                    # Shared utilities (Adapter, etc.)
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests (smoke_test.py)
+│   ├── integration/              # Integration tests (dataloader tests)
+│   └── data_pipeline/            # Data pipeline tests
+├── scripts/                      # Utility scripts
+│   └── data_wrangling/           # Data extraction and preprocessing
+├── .github/workflows/            # CI/CD pipelines
+│   └── smoke-tests.yml           # Automated tests for PRs
+├── AdapterWeights/               # Trained adapter weights
+└── data/                         # Dataset storage
+```
+
+### Testing and CI/CD
+
+**Smoke Tests** (`tests/unit/smoke_test.py`):
+- Quick sanity checks for production-ready encoders
+- Tests initialization, input format validation, output shape validation
+- Validates all encoders output consistent (1, 1024) shape
+
+**GitHub Actions** (`.github/workflows/smoke-tests.yml`):
+- Triggers on pull requests to main/master branches
+- Must pass before PR can be merged
+- Jobs:
+  1. `smoke-test`: Runs unit tests on production encoders
+  2. `verify-production-encoders`: Verifies encoder imports and adapter existence
+
+**Running Tests Locally**:
+```bash
+# Run smoke tests
+cd tests/unit
+python -m pytest smoke_test.py -v
+
+# Run integration tests
+cd tests/integration
+python test_dataloader_5videos.py
+```
 
 ## References
 
