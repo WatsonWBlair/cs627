@@ -104,6 +104,15 @@ Uses **Cross-Modal Momentum Contrastive Learning** (based on [1]).
 
 **Input Format**: `[(query, positive, negative), ...]`
 
+#### Raw Encoder Training (`src/Training/train_raw_encoders.py`)
+Training pipeline for encoders using raw multimodal data from CMU-MOSI:
+
+- **Dataset**: `MOSIRawVideoDataset` with lazy loading
+- **Collate Function**: `collate_fn_raw_video()` loads audio waveforms (via librosa) and video frames (via PIL) just-in-time
+- **Encoders**: Text_to_Vec, Audio_to_Vec, Image_to_Vec
+- **Training**: Contrastive learning with cross-modal triplets
+- **Memory Optimization**: Lazy loading prevents RAM overflow when training on large video datasets
+
 #### Decoder Alignment
 Dual loss approach (Fig. 4 in paper):
 
@@ -130,18 +139,31 @@ Both losses measure reconstruction quality from different perspectives.
 
 ### Datasets
 
+**CMU-MOSI** (Primary Dataset): Multimodal Opinion Sentiment Intensity
+- 2,199 opinion video segments from YouTube
+- Modalities: Text transcripts, Audio waveforms (16kHz), Video frames (RGB)
+- Labels: Sentiment intensity scores
+- Dataset class: `MOSIRawVideoDataset` in `src/Training/Data_Wrangling/mosi_dataset.py`
+- Download function: `download_mosi()` downloads metadata via CMU-MultimodalSDK
+- **Data Pipeline**:
+  1. Download MOSI metadata: `download_mosi('data/cmumosi/mosi/')`
+  2. Extract videos, audio, and frames: `scripts/data_wrangling/extract_test_segments.py`
+  3. Load with dataset: `MOSIRawVideoDataset(split='train', mosi_data_path='...', audio_dir='...', video_dir='...')`
+- Returns: `{'text': str, 'audio': path, 'video': path, 'label': float, 'segment_id': str}`
+- Lazy loading: Audio/video loaded in collate function to avoid RAM overflow
+
 **MultiBench**: Comprehensive evaluation suite with 20 multimodal ML algorithms
 - Available: https://github.com/pliang279/MultiBench
 - Covers (1) data preprocessing, (2) fusion paradigms, (3) optimization objectives, (4) training procedures
 
 **Conceptual 12M**: ~12 million image-text pairs for vision-and-language pre-training
 
-**Intent Classification** (preprocessed via `preprocess_clinc_oos.py`):
+**Intent Classification** (preprocessed via `scripts/data_wrangling/preprocess_clinc_oos.py`):
 - Dataset: clinc_oos (intent classification)
 - Returns TF-IDF vectorized train/val/test splits
 - Function: `load_and_preprocess_data()` returns `(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer)`
 
-**Emotion Classification** (preprocessed via `preprocess_meld.py`):
+**Emotion Classification** (preprocessed via `scripts/data_wrangling/preprocess_meld.py`):
 - Dataset: MELD (emotion classification)
 - Returns TF-IDF vectorized train/val/test splits with label encoding
 - Function: `load_and_preprocess_data()` returns `(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer, label_encoder)`
@@ -218,9 +240,56 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 - **tools/create_decoder.py** - Generator script for new decoders (marks as EXPERIMENTAL by default)
 - **tools/validate_module.py** - Functional validation for production modules (skips experimental)
 
-## Archive Directories
+## Project Structure
 
-Archive directories (`src/archive/`, `src/Encoders/*/archive/`, etc.) contain historical code and are not under active development. Do not modify archive code unless explicitly working with legacy implementations.
+### Directory Organization
+
+```
+cs627/
+├── src/                          # Source code
+│   ├── Encoders/                 # Modality to vector encoders
+│   ├── Decoders/                 # Vector to modality decoders
+│   ├── Training/                 # Training scripts and data loaders
+│   │   └── Data_Wrangling/       # Dataset loaders (MOSI, etc.)
+│   ├── Inference/                # Inference modules (chatbot, summarization)
+│   └── utils/                    # Shared utilities (Adapter, etc.)
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests (smoke_test.py)
+│   ├── integration/              # Integration tests (dataloader tests)
+│   └── data_pipeline/            # Data pipeline tests
+├── scripts/                      # Utility scripts
+│   ├── data_wrangling/           # Data extraction and preprocessing
+│   └── ...                       # Other utilities
+├── .github/workflows/            # CI/CD pipelines
+│   └── smoke-tests.yml           # Automated tests for PRs
+├── AdapterWeights/               # Trained adapter weights
+└── data/                         # Dataset storage
+```
+
+### Testing and CI/CD
+
+**Smoke Tests** (`tests/unit/smoke_test.py`):
+- Quick sanity checks for production-ready encoders
+- Tests initialization, input format validation, output shape validation
+- Validates all encoders output consistent (1, 1024) shape
+
+**GitHub Actions** (`.github/workflows/smoke-tests.yml`):
+- Triggers on pull requests to main/master branches
+- Must pass before PR can be merged
+- Jobs:
+  1. `smoke-test`: Runs unit tests on production encoders
+  2. `verify-production-encoders`: Verifies encoder imports and adapter existence
+
+**Running Tests Locally**:
+```bash
+# Run smoke tests
+cd tests/unit
+python -m pytest smoke_test.py -v
+
+# Run integration tests
+cd tests/integration
+python test_dataloader_5videos.py
+```
 
 ## References
 

@@ -1,5 +1,6 @@
 import torch
 from transformers import BartForConditionalGeneration, BartTokenizer
+from transformers.modeling_outputs import BaseModelOutput
 from typing import Union
 from utils.Adapter import Adapter
 
@@ -37,6 +38,16 @@ class Vec_to_Text(torch.nn.Module):
 
         print(f"[Vec_to_Text] Decoder initialized with {base_model}")
 
+        # Load trained adapter weights if they exist
+        try:
+            self.adapter.load(device=DEVICE)
+            print(f"[Vec_to_Text] [OK] Loaded adapter weights: {self.adapter.weights_path}")
+        except FileNotFoundError:
+            print(f"[Vec_to_Text] [WARNING] No trained adapter weights found!")
+            print(f"[Vec_to_Text] [WARNING] Expected: {self.adapter.weights_path}")
+            print(f"[Vec_to_Text] [WARNING] Decoder will NOT work until trained.")
+            print(f"[Vec_to_Text] [WARNING] Train using: python src/Training/train_text_decoder.py")
+
     def forward(self, semantic_vector: torch.Tensor, *, device: str = DEVICE) -> Union[str, list[str]]:
         """
         Generate text from semantic vector.
@@ -53,13 +64,19 @@ class Vec_to_Text(torch.nn.Module):
         self.adapter = self.adapter.to(device)
         self.decoder = self.decoder.to(device)
 
-        # Project semantic vector to decoder input space
-        decoder_input = self.adapter(semantic_vector)
+        # Project semantic vector to BART hidden space (1024 → 768)
+        decoder_input = self.adapter(semantic_vector)  # Shape: (batch, 768)
 
-        # Generate text
-        # Note: This is simplified; proper implementation needs encoder_outputs formatting
+        # Create encoder_outputs structure for BART decoder cross-attention
+        encoder_outputs = BaseModelOutput(
+            last_hidden_state=decoder_input.unsqueeze(1),  # (batch, 1, 768)
+            hidden_states=None,
+            attentions=None
+        )
+
+        # Generate text using encoder outputs
         output_ids = self.decoder.generate(
-            inputs_embeds=decoder_input.unsqueeze(1),  # Add sequence dimension
+            encoder_outputs=encoder_outputs,
             max_length=50,
             num_beams=5,
             early_stopping=True

@@ -35,6 +35,16 @@ class Text_to_Vec(torch.nn.Module):
             hidden_layers=2
         )
 
+        # Load trained adapter weights if they exist
+        try:
+            self.adapter.load(device=DEVICE)
+            print(f"[Text_to_Vec] [OK] Loaded adapter weights: {self.adapter.weights_path}")
+        except FileNotFoundError:
+            print(f"[Text_to_Vec] [WARNING] No trained adapter weights found!")
+            print(f"[Text_to_Vec] [WARNING] Expected: {self.adapter.weights_path}")
+            print(f"[Text_to_Vec] [WARNING] Encoder will NOT work until trained.")
+            print(f"[Text_to_Vec] [WARNING] Train using: python src/Training/train_text_encoder.py")
+
     def forward(
         self,
         input_text: Union[str, list[str]],

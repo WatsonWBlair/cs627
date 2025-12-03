@@ -24,8 +24,12 @@ pip install -r requirements.txt
 git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
 cd CMU-MultimodalSDK && pip install .
 
+# Download and extract MOSI videos
+python scripts/data_wrangling/download_test_videos.py
+python scripts/data_wrangling/extract_test_segments.py
+
 # Train text, audio, and video encoders on CMU-MOSI dataset
-python src/Training/train_encoder_alignment.py
+python src/Training/train_raw_encoders.py
 ```
 
 See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
@@ -116,19 +120,19 @@ See [Training README](src/Training/README.md) for complete training guide.
 cs627/
 ├── src/
 │   ├── Encoders/              # Modality → Semantic Vector
-│   │   ├── text_2_vec.py      # Text encoder (BART)
-│   │   ├── wav_2_vec.py       # Audio encoder (Whisper)
-│   │   ├── img_2_vec.py       # Image encoder (ViT)
+│   │   ├── text_2_vec.py      # Text encoder (BART) - PRODUCTION
+│   │   ├── wav_2_vec.py       # Audio encoder (Whisper) - PRODUCTION
+│   │   ├── img_2_vec.py       # Image encoder (ViT) - PRODUCTION
 │   │   └── README.md          # How to add new encoders
 │   ├── Decoders/              # Semantic Vector → Modality
-│   │   ├── vec_2_text.py      # Text decoder
-│   │   ├── vec_2_img.py       # Image decoder (Stable Diffusion)
-│   │   ├── vec_2_audio.py     # Audio decoder (TTS)
+│   │   ├── vec_2_text.py      # Text decoder - PRODUCTION
+│   │   ├── vec_2_img.py       # Image decoder (Stable Diffusion) - EXPERIMENTAL
+│   │   ├── vec_2_audio.py     # Audio decoder (TTS) - EXPERIMENTAL
 │   │   └── README.md          # How to add new decoders
 │   ├── Training/              # Training infrastructure
 │   │   ├── encoder_trainers.py     # MoCo contrastive learning
 │   │   ├── decoder_trainers.py     # Dual-loss training
-│   │   ├── train_encoder_alignment.py  # Main training script
+│   │   ├── train_raw_encoders.py   # Main training script (raw data)
 │   │   ├── Data_Wrangling/
 │   │   │   └── mosi_dataset.py     # CMU-MOSI dataset loader
 │   │   ├── README.md          # Training documentation
@@ -138,9 +142,24 @@ cs627/
 │   │   └── Summarization/     # Text summarization
 │   └── utils/
 │       └── Adapter.py         # MLP adapter module
+├── tests/                     # Test suite
+│   ├── unit/                  # Unit tests (smoke tests)
+│   ├── integration/           # Integration tests (dataloader tests)
+│   └── data_pipeline/         # Data pipeline tests
+├── scripts/                   # Utility scripts
+│   ├── data_wrangling/        # Data extraction and preprocessing
+│   │   ├── download_test_videos.py   # Download MOSI videos
+│   │   ├── extract_test_segments.py  # Extract audio/frames
+│   │   ├── preprocess_clinc_oos.py   # Intent classification data
+│   │   └── preprocess_meld.py        # Emotion classification data
+│   └── ...                    # Other utilities
+├── .github/workflows/         # CI/CD pipelines
+│   └── smoke-tests.yml        # Automated smoke tests for PRs
 ├── litrature/                 # Research papers and notes
 │   ├── Paper.txt              # Companion research paper
 │   └── previous_work/         # Related work and references
+├── AdapterWeights/            # Trained adapter weights
+├── data/                      # Dataset storage (not in git)
 ├── CLAUDE.md                  # Project guide for Claude Code
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
@@ -172,6 +191,31 @@ cs627/
 ✅ **Momentum contrastive learning**: Stable training with InfoNCE loss
 ✅ **Backtranslation**: Synthesize training data for unsupervised alignment
 ✅ **Extensible**: Easy to add new modalities (depth, radar, etc.)
+✅ **Automated testing**: Smoke tests and CI/CD via GitHub Actions
+✅ **Lazy loading**: Efficient memory usage for large video datasets
+
+## Testing and Quality Assurance
+
+### Running Tests
+
+```bash
+# Run smoke tests (unit tests for production encoders)
+cd tests/unit
+python -m pytest smoke_test.py -v
+
+# Run integration tests (dataloader tests)
+cd tests/integration
+python test_dataloader_5videos.py
+```
+
+### Continuous Integration
+
+All pull requests to `main` must pass automated smoke tests before merge:
+- **Encoder initialization tests**: Verify all production encoders load correctly
+- **Output shape validation**: Ensure all encoders output (1, 1024) tensors
+- **Adapter verification**: Check adapters exist and load properly
+
+See `.github/workflows/smoke-tests.yml` for CI configuration.
 
 ## Research
 
