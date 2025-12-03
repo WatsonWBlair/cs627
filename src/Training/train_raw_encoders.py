@@ -36,7 +36,8 @@ matplotlib.use('Agg')  # Use non-GUI backend for server compatibility
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
-from src.Training.Data_Wrangling.mosi_dataset import MOSIRawDataset, MOSIRawVideoDataset
+from src.Encoders.audio.tone_to_vec import Tone_to_Vec
+from src.Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset
 import librosa
 from PIL import Image as PILImage
 
@@ -381,6 +382,7 @@ class EncoderConfig:
         encoder: The encoder module (must have .forward() and .adapter)
         data_key: Key in batch dict to extract input data (e.g., 'text', 'audio', 'video')
         preprocess_fn: Optional function to preprocess data before encoding
+        loss_weight: Feature importance weight for loss calculation (default: 1.0)
     """
 
     def __init__(
@@ -388,12 +390,14 @@ class EncoderConfig:
         name: str,
         encoder: nn.Module,
         data_key: str,
-        preprocess_fn: Callable[[Any], Any] = None
+        preprocess_fn: Callable[[Any], Any] = None,
+        loss_weight: float = 1.0
     ):
         self.name = name
         self.encoder = encoder
         self.data_key = data_key
         self.preprocess_fn = preprocess_fn or (lambda x: x)
+        self.loss_weight = loss_weight
 
     def __repr__(self):
         return f"EncoderConfig(name='{self.name}', data_key='{self.data_key}')"
@@ -560,8 +564,11 @@ class CrossModalTrainer:
 
             losses[config.name] = loss
 
-        # Total loss (sum of all encoder losses)
-        total_loss = sum(losses.values())
+        # Total loss (weighted sum of all encoder losses)
+        total_loss = sum(
+            config.loss_weight * losses[config.name]
+            for config in self.encoder_configs
+        )
 
         # Backward pass
         self.optimizer.zero_grad()
@@ -788,47 +795,50 @@ def main():
     # Define encoder configurations
     # This is where you specify N encoders with their specializations
     encoder_configs = [
-        # Text encoders
+        # Text encoder - baseline weight
         EncoderConfig(
             name='text_base',
             encoder=Text_to_Vec(),
-            data_key='text'
+            data_key='text',
+            loss_weight=1.0  # Baseline (can increase for conversational coherence)
         ),
 
-        # Audio encoders
-        # Future: Add specialized audio encoders for tone, sarcasm, etc.
+        # Audio encoder #1: Waveform/content (Whisper)
         EncoderConfig(
-            name='audio_base',
+            name='audio_waveform',
             encoder=Audio_to_Vec(),
-            data_key='audio'
+            data_key='audio',
+            loss_weight=1.0  # Equal to baseline
         ),
 
-        # Image/Video encoders
-        # Future: Add specialized image encoders for distraction, emotion, etc.
+        # Audio encoder #2: Tone/prosody (WavLM)
+        EncoderConfig(
+            name='audio_tone',
+            encoder=Tone_to_Vec(),  # Uses WavLM-base for tone detection
+            data_key='audio',       # Same raw waveform input!
+            loss_weight=1.0         # Equal to baseline initially
+        ),
+
+        # Image encoder - baseline weight
         EncoderConfig(
             name='image_base',
             encoder=Image_to_Vec(),
-            data_key='video'
+            data_key='video',
+            loss_weight=1.0  # Equal to baseline
         ),
 
-        # Example of future specialized encoders:
-        # EncoderConfig(
-        #     name='audio_tone',
-        #     encoder=Audio_Tone_Encoder(),
-        #     data_key='audio',
-        #     preprocess_fn=extract_tone_features
-        # ),
+        # Future specialized encoders (examples):
         # EncoderConfig(
         #     name='audio_sarcasm',
-        #     encoder=Audio_Sarcasm_Encoder(),
-        #     data_key='audio',
-        #     preprocess_fn=extract_sarcasm_features
+        #     encoder=Sarcasm_to_Vec(),  # Separate model for sarcasm detection
+        #     data_key='audio',           # Same audio input as above!
+        #     loss_weight=1.0
         # ),
         # EncoderConfig(
         #     name='image_distraction',
-        #     encoder=Image_Distraction_Encoder(),
-        #     data_key='video',
-        #     preprocess_fn=extract_facial_posture
+        #     encoder=Distraction_to_Vec(),  # Attention/distraction from video
+        #     data_key='video',               # Same video input
+        #     loss_weight=1.0
         # ),
     ]
 

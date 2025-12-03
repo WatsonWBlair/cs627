@@ -53,8 +53,7 @@ See [Cloud Deployment Guide](CLOUD_DEPLOYMENT.md) for complete cloud setup instr
 ### 3. Use Trained Encoders
 
 ```python
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 
 # Load encoders (adapters auto-load trained weights)
 text_encoder = Text_to_Vec()
@@ -124,14 +123,21 @@ See [Training README](src/Training/README.md) for complete training guide.
 cs627/
 ├── src/
 │   ├── Encoders/              # Modality → Semantic Vector
-│   │   ├── text_2_vec.py      # Text encoder (BART) - PRODUCTION
-│   │   ├── wav_2_vec.py       # Audio encoder (Whisper) - PRODUCTION
-│   │   ├── img_2_vec.py       # Image encoder (ViT) - PRODUCTION
+│   │   ├── text/              # Text encoders
+│   │   │   └── semantic_to_vec.py  # Text_to_Vec (BART) - PRODUCTION
+│   │   ├── audio/             # Audio encoders
+│   │   │   ├── waveform_to_vec.py  # Audio_to_Vec (Whisper) - PRODUCTION
+│   │   │   └── tone_to_vec.py      # Tone_to_Vec (WavLM) - PRODUCTION
+│   │   ├── image/             # Image encoders
+│   │   │   └── visual_to_vec.py    # Image_to_Vec (ViT) - PRODUCTION
 │   │   └── README.md          # How to add new encoders
 │   ├── Decoders/              # Semantic Vector → Modality
-│   │   ├── vec_2_text.py      # Text decoder - PRODUCTION
-│   │   ├── vec_2_img.py       # Image decoder (Stable Diffusion) - EXPERIMENTAL
-│   │   ├── vec_2_audio.py     # Audio decoder (TTS) - EXPERIMENTAL
+│   │   ├── text/              # Text decoders
+│   │   │   └── vec_to_semantic.py  # Vec_to_Text - PRODUCTION
+│   │   ├── image/             # Image decoders
+│   │   │   └── vec_to_visual.py    # Vec_to_Image (Stable Diffusion) - EXPERIMENTAL
+│   │   ├── audio/             # Audio decoders
+│   │   │   └── vec_to_waveform.py  # Vec_to_Audio (TTS) - EXPERIMENTAL
 │   │   └── README.md          # How to add new decoders
 │   ├── Training/              # Training infrastructure
 │   │   ├── encoder_trainers.py     # MoCo contrastive learning

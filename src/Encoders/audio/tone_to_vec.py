@@ -1,21 +1,25 @@
 import torch
-from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from transformers import Wav2Vec2FeatureExtractor, WavLMModel
 from typing import Union
+import numpy as np
 from src.utils.Adapter import Adapter
 
-BASE_MODEL: str = "openai/whisper-small"
+BASE_MODEL: str = "microsoft/wavlm-base"
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-WHISPER_SMALL_ENCODER_DIM: int = 768
+WAVLM_BASE_DIM: int = 768
 
 
-class Audio_to_Vec(torch.nn.Module):
+class Tone_to_Vec(torch.nn.Module):
     """
-    Audio encoder using Whisper encoder + MLP Adapter.
+    Audio tone/prosody encoder using WavLM encoder + MLP Adapter.
+
+    Specialized for emotional tone, prosody, and speaking style detection.
+    Uses WavLM (optimized for tone) instead of Whisper (optimized for ASR).
 
     Args:
-        base_model: Pretrained Whisper model name (default: "openai/whisper-small")
+        base_model: Pretrained WavLM model name (default: "microsoft/wavlm-base")
         output_dim: Output semantic vector dimension (default: 1024)
-        freeze_encoder: Whether to freeze Whisper encoder (default: True)
+        freeze_encoder: Whether to freeze WavLM encoder (default: True)
     """
 
     def __init__(
@@ -24,40 +28,40 @@ class Audio_to_Vec(torch.nn.Module):
         output_dim: int = 1024,
         freeze_encoder: bool = True
     ) -> None:
-        super(Audio_to_Vec, self).__init__()
+        super(Tone_to_Vec, self).__init__()
 
-        self.processor: WhisperProcessor = WhisperProcessor.from_pretrained(base_model)
-        self.model: WhisperForConditionalGeneration = WhisperForConditionalGeneration.from_pretrained(base_model)
+        self.feature_extractor: Wav2Vec2FeatureExtractor = Wav2Vec2FeatureExtractor.from_pretrained(base_model)
+        self.model: WavLMModel = WavLMModel.from_pretrained(base_model)
 
-        # Extract just the encoder for efficiency
-        self.encoder = self.model.get_encoder()
+        # Extract encoder for efficiency
+        self.encoder = self.model
 
         # Freeze pretrained encoder to prevent catastrophic forgetting
         if freeze_encoder:
             self.encoder.requires_grad_(False)
-            print(f"[Audio_to_Vec] Whisper encoder frozen (0 trainable params)")
+            print(f"[Tone_to_Vec] WavLM encoder frozen (0 trainable params)")
 
         # Create adapter: maps encoder hidden states to semantic space
         self.adapter: Adapter = Adapter(
-            prefix=f"{base_model.replace('/', '_')}_audio_enc",
-            input_length=WHISPER_SMALL_ENCODER_DIM,
+            prefix=f"{base_model.replace('/', '_')}_audio_tone_enc",
+            input_length=WAVLM_BASE_DIM,
             output_length=output_dim,
             hidden_size=200,
             hidden_layers=2
         )
 
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f"[Audio_to_Vec] Adapter has {trainable_params:,} trainable parameters")
+        print(f"[Tone_to_Vec] Adapter has {trainable_params:,} trainable parameters")
 
     def forward(
         self,
-        input_audio: Union[torch.Tensor, list],
+        input_audio: Union[torch.Tensor, list, np.ndarray],
         *,
         sampling_rate: int = 16000,
         device: str = DEVICE
     ) -> torch.Tensor:
         """
-        Forward pass: audio waveform → encoder hidden states → pooled → adapter → semantic vector
+        Forward pass: audio waveform → WavLM encoder → pooled → adapter → semantic vector
 
         Args:
             input_audio: Raw audio waveform(s)
@@ -72,16 +76,16 @@ class Audio_to_Vec(torch.nn.Module):
         # Move encoder to device
         self.encoder = self.encoder.to(device)
 
-        # Process audio input → log-mel spectrogram features
-        input_features = self.processor(
+        # Process audio input → WavLM input features
+        input_values = self.feature_extractor(
             input_audio,
             sampling_rate=sampling_rate,
             return_tensors="pt"
-        ).input_features.to(device)
+        ).input_values.to(device)
 
-        # Pass through Whisper encoder (no gradients if frozen)
+        # Pass through WavLM encoder (no gradients if frozen)
         with torch.set_grad_enabled(self.encoder.training and any(p.requires_grad for p in self.encoder.parameters())):
-            encoder_outputs = self.encoder(input_features)
+            encoder_outputs = self.encoder(input_values)
             encoder_hidden_states = encoder_outputs.last_hidden_state  # (batch, time, 768)
 
         # Mean pooling over time dimension to get fixed-size representation

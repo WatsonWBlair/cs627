@@ -1,7 +1,7 @@
 import torch
 from transformers import BartModel, BartTokenizer
 from typing import Union, Optional
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 BASE_MODEL: str = "facebook/bart-base"
 BART_BASE_HIDDEN_DIM: int = 768  # BART-base hidden dimension

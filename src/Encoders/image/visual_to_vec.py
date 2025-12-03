@@ -1,7 +1,7 @@
 import torch
 from transformers import ViTImageProcessor, VisionEncoderDecoderModel
 from typing import Union
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 BASE_MODEL: str = "nlpconnect/vit-gpt2-image-captioning"
 VIT_BASE_HIDDEN_DIM: int = 768  # ViT-base encoder output dimension
