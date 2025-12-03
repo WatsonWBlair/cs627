@@ -79,10 +79,12 @@ similarity = F.cosine_similarity(text_vector, audio_vector)
 Text/Audio/Video → Pretrained Encoder → MLP Adapter → Semantic Vector (1024-dim)
 ```
 
-**Current Encoders**:
-- **Text**: `Text_to_Vec` - `facebook/bart-base` + Adapter → `text_2_vec.py`
-- **Audio**: `Audio_to_Vec` - `openai/whisper-small` + Adapter → `wav_2_vec.py`
-- **Image**: `Image_to_Vec` - `nlpconnect/vit-gpt2-image-captioning` + Adapter → `img_2_vec.py`
+**Current Encoders** (organized by modality):
+- **Text** (`text/`): `Text_to_Vec` - `facebook/bart-base` + Adapter → `semantic_to_vec.py` (PRODUCTION)
+- **Audio** (`audio/`): `Audio_to_Vec` - `openai/whisper-small` + Adapter → `waveform_to_vec.py` (PRODUCTION)
+- **Image** (`image/`): `Image_to_Vec` - `nlpconnect/vit-gpt2-image-captioning` + Adapter → `visual_to_vec.py` (PRODUCTION)
+
+Import: `from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec`
 
 See [Encoder README](src/Encoders/README.md) for adding new encoders.
 
@@ -94,10 +96,12 @@ See [Encoder README](src/Encoders/README.md) for adding new encoders.
 Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
 ```
 
-**Current Decoders**:
-- **Text**: `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_2_text.py` (Fully implemented)
-- **Image**: `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_2_img.py` (EXPERIMENTAL)
-- **Audio**: `Vec_to_Audio` - Adapter + `suno/bark-small` → `vec_2_audio.py` (EXPERIMENTAL)
+**Current Decoders** (organized by modality):
+- **Text** (`text/`): `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_to_semantic.py` (PRODUCTION)
+- **Image** (`image/`): `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_to_visual.py` (EXPERIMENTAL)
+- **Audio** (`audio/`): `Vec_to_Audio` - Adapter + `suno/bark-small` → `vec_to_waveform.py` (EXPERIMENTAL)
+
+Import: `from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image`
 
 See [Decoder README](src/Decoders/README.md) for adding new decoders.
 

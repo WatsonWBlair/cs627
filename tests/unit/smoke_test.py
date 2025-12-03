@@ -18,9 +18,7 @@ from PIL import Image
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
-from Encoders.img_2_vec import Image_to_Vec
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 
 
 class TestTextToVec(unittest.TestCase):

@@ -17,9 +17,7 @@ sys.path.insert(0, 'src')
 
 from Training.Data_Wrangling.mosi_audio_extractor import extract_audio_segments
 from Training.Data_Wrangling.mosi_frame_extractor import extract_frames
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
-from Encoders.img_2_vec import Image_to_Vec
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from PIL import Image
 import librosa
 import torch

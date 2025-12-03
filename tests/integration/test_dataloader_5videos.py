@@ -114,9 +114,7 @@ def main():
     print("-" * 80)
 
     try:
-        from Encoders.text_2_vec import Text_to_Vec
-        from Encoders.wav_2_vec import Audio_to_Vec
-        from Encoders.img_2_vec import Image_to_Vec
+        from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 
         # Initialize encoders
         text_encoder = Text_to_Vec()

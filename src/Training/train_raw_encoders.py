@@ -35,9 +35,7 @@ matplotlib.use('Agg')  # Use non-GUI backend for server compatibility
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.Encoders.text_2_vec import Text_to_Vec
-from src.Encoders.wav_2_vec import Audio_to_Vec
-from src.Encoders.img_2_vec import Image_to_Vec
+from src.Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from src.Training.Data_Wrangling.mosi_dataset import MOSIRawDataset, MOSIRawVideoDataset
 import librosa
 from PIL import Image as PILImage

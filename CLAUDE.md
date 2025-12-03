@@ -46,11 +46,20 @@ Convert modalities (text, audio, image) into semantic vectors.
 - MLP Adapter (simple multi-layer perceptron) translates to Semantic-Vector space
 - This design is highly performant, less prone to overfitting, 2 orders of magnitude cheaper to train, and more robust to distribution shift
 
-**Key Files**:
-- `text_2_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter - Production
-- `wav_2_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter - Production
-- `img_2_vec.py` - Image encoder (`Image_to_Vec`) using `nlpconnect/vit-gpt2-image-captioning` + Adapter - Production
+**Directory Structure** (organized by modality):
+- `text/` - Text encoders (semantic features)
+  - `semantic_to_vec.py` - Text encoder (`Text_to_Vec`) using `facebook/bart-base` + Adapter - PRODUCTION
+- `audio/` - Audio encoders (waveform, tone, etc.)
+  - `waveform_to_vec.py` - Audio encoder (`Audio_to_Vec`) using `openai/whisper-small` + Adapter - PRODUCTION
+- `image/` - Image encoders (visual features)
+  - `visual_to_vec.py` - Image encoder (`Image_to_Vec`) using `nlpconnect/vit-gpt2-image-captioning` + Adapter - PRODUCTION
+- `video/` - Video encoders (motion, temporal features)
 - `encoder_boilerplate.py` - Template for creating new encoders
+
+**Imports** (backward compatible):
+```python
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
+```
 
 **Current Models**:
 - BART (facebook/bart-base) - Text encoding and decoding
@@ -68,11 +77,20 @@ Convert semantic vectors back to modalities.
 
 **Important**: To train a Decoder, an Encoder of the same modality must already exist.
 
-**Key Files**:
-- `vec_2_text.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - Production
-- `vec_2_audio.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
-- `vec_2_img.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
+**Directory Structure** (organized by modality):
+- `text/` - Text decoders (semantic to text)
+  - `vec_to_semantic.py` - Vector to text decoder (`Vec_to_Text`) using Adapter + `facebook/bart-base` - PRODUCTION
+- `audio/` - Audio decoders (vector to waveform, etc.)
+  - `vec_to_waveform.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
+- `image/` - Image decoders (vector to visual)
+  - `vec_to_visual.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
+- `video/` - Video decoders (vector to motion, etc.)
 - `decoder_boilerplate.py` - Template for creating new decoders
+
+**Imports** (backward compatible):
+```python
+from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image
+```
 
 #### 3. Adapter Module (`src/utils/Adapter.py`)
 Neural network bridge between pretrained models and shared semantic space.
@@ -221,9 +239,12 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 - **Image model**: `nlpconnect/vit-gpt2-image-captioning`
 - **Tokenization**: BartTokenizer for text (max_length=1024), WhisperProcessor for audio
 - **This is cross-modal work**: Covers text, audio, and image modalities
+- **Directory organization**: Encoders and decoders organized by source/target modality (text/, audio/, image/, video/)
+- **File naming convention**: `{feature}_to_vec.py` for encoders, `vec_to_{feature}.py` for decoders
 - **Class naming convention**: `{Modality}_to_Vec` for encoders, `Vec_to_{Modality}` for decoders
+- **Imports**: Use `from Encoders import Text_to_Vec` (backward compatible)
 - **All components inherit from**: `torch.nn.Module` (not Pipeline or other base classes)
-- **Multiple classes per file**: Each modality file can contain multiple encoder/decoder classes targeting different features
+- **Multiple encoders per modality**: Each modality directory can contain multiple feature-specific encoders (e.g., audio/waveform_to_vec.py, audio/tone_to_vec.py)
 - **EXPERIMENTAL status**: New encoders and decoders should be marked EXPERIMENTAL until validated
 
 ## Project Documentation
@@ -248,8 +269,23 @@ self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
 cs627/
 ├── src/                          # Source code
 │   ├── Encoders/                 # Modality to vector encoders
+│   │   ├── text/                 # Text encoders (semantic features)
+│   │   │   └── semantic_to_vec.py  # Text_to_Vec (PRODUCTION)
+│   │   ├── audio/                # Audio encoders (waveform, tone, etc.)
+│   │   │   └── waveform_to_vec.py  # Audio_to_Vec (PRODUCTION)
+│   │   ├── image/                # Image encoders (visual features)
+│   │   │   └── visual_to_vec.py    # Image_to_Vec (PRODUCTION)
+│   │   └── video/                # Video encoders (motion, temporal)
 │   ├── Decoders/                 # Vector to modality decoders
+│   │   ├── text/                 # Text decoders
+│   │   │   └── vec_to_semantic.py  # Vec_to_Text (PRODUCTION)
+│   │   ├── audio/                # Audio decoders
+│   │   │   └── vec_to_waveform.py  # Vec_to_Audio (EXPERIMENTAL)
+│   │   ├── image/                # Image decoders
+│   │   │   └── vec_to_visual.py    # Vec_to_Image (EXPERIMENTAL)
+│   │   └── video/                # Video decoders
 │   ├── Training/                 # Training scripts and data loaders
+│   │   ├── train_raw_encoders.py   # Main training script
 │   │   └── Data_Wrangling/       # Dataset loaders (MOSI, etc.)
 │   ├── Inference/                # Inference modules (chatbot, summarization)
 │   └── utils/                    # Shared utilities (Adapter, etc.)
@@ -258,8 +294,7 @@ cs627/
 │   ├── integration/              # Integration tests (dataloader tests)
 │   └── data_pipeline/            # Data pipeline tests
 ├── scripts/                      # Utility scripts
-│   ├── data_wrangling/           # Data extraction and preprocessing
-│   └── ...                       # Other utilities
+│   └── data_wrangling/           # Data extraction and preprocessing
 ├── .github/workflows/            # CI/CD pipelines
 │   └── smoke-tests.yml           # Automated tests for PRs
 ├── AdapterWeights/               # Trained adapter weights

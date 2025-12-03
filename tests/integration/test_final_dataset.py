@@ -14,9 +14,7 @@ import os
 sys.path.insert(0, 'src')
 
 from Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
-from Encoders.img_2_vec import Image_to_Vec
+from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from PIL import Image
 import librosa
 
