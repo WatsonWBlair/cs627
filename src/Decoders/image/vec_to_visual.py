@@ -15,7 +15,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 from torch import Generator
 from PIL.Image import Image
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 BASE_MODEL: str = "CompVis/stable-diffusion-v1-4"
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"

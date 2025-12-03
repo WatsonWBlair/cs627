@@ -1,0 +1,104 @@
+name: Smoke Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    types: [opened, synchronize, reopened]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Run smoke tests
+      run: |
+        cd tests/unit
+        python -m pytest smoke_test.py -v --tb=short
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+    - name: Check test results
+      if: failure()
+      run: |
+        echo "Smoke tests failed. Please fix the issues before merging."
+        exit 1
+
+  verify-production-encoders:
+    runs-on: ubuntu-latest
+    needs: smoke-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Verify production encoders exist
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, 'src')
+
+        # Import production encoders
+        from Encoders.text_2_vec import Text_to_Vec
+        from Encoders.wav_2_vec import Audio_to_Vec
+        from Encoders.img_2_vec import Image_to_Vec
+
+        print('All production encoders imported successfully')
+        "
+
+    - name: Check encoder adapters
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, 'src')
+
+        from Encoders.text_2_vec import Text_to_Vec
+        from Encoders.wav_2_vec import Audio_to_Vec
+        from Encoders.img_2_vec import Image_to_Vec
+
+        # Verify adapters exist
+        encoders = {
+            'Text_to_Vec': Text_to_Vec(),
+            'Audio_to_Vec': Audio_to_Vec(),
+            'Image_to_Vec': Image_to_Vec()
+        }
+
+        for name, encoder in encoders.items():
+            assert hasattr(encoder, 'adapter'), f'{name} missing adapter'
+            print(f'{name}: adapter OK')
+
+        print('All encoder adapters verified')
+        "

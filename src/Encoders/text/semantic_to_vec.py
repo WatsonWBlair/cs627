@@ -85,26 +85,3 @@ class Text_to_Vec(torch.nn.Module):
         semantic_vector = self.adapter(pooled_output)
 
         return semantic_vector
-
-# Encoder Pipeline, with the adapter as the first, or last step of the pipeline.
-# class TextPipeline(Pipeline):
-#     def _sanitize_parameters(self, **kwargs, adapter: str):
-#         # Example: Ensure a 'threshold' parameter is valid
-#         if "threshold" in kwargs and not isinstance(kwargs["threshold"], (int, float)):
-#             raise ValueError("Threshold must be a number.")
-#         return {}, {}, {} # return model_kwargs, preprocess_params, postprocess_params
-
-#     def preprocess(self, text):
-#         tokenizer = AutoTokenizer.from_pretrained(self.model.name_or_path)
-#         return tokenizer(text, return_tensors="pt")
-
-#     def _forward(self, model_inputs):
-#         return self.model(**model_inputs)
-
-#     def postprocess(self, model_outputs, threshold=0.5):
-#         logits = model_outputs.logits
-#         probabilities = logits.softmax(dim=-1)
-#         predictions = (probabilities[:, 1] > threshold).long() # Assuming binary classification
-#         labels = ["negative", "positive"]
-#         return [{"label": labels[p.item()], "score": prob.item()} for p, prob in zip(predictions, probabilities[:, 1])]
-

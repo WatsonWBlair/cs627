@@ -1,1 +1,0 @@
-This directory holds code for a model that is trained to condense semantic vectors as a summarization function.

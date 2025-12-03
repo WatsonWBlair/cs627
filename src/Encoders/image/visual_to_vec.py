@@ -48,39 +48,3 @@ class Image_to_Vec(torch.nn.Module):
         semantic_vector = self.adapter(pooled_output.to(device))
 
         return semantic_vector
-        
-
-
-# from transformers import Pipeline
-
-
-# class Img_to_descripton(Pipeline):
-#     def _sanitize_parameters(self, **kwargs):
-#         "_sanitize_parameters exists to allow users to pass any parameters whenever they wish, be it at initialization time pipeline(...., maybe_arg=4) or at call time pipe = pipeline(...); output = pipe(...., maybe_arg=4)."
-#         preprocess_kwargs = {}
-#         if "maybe_arg" in kwargs:
-#             preprocess_kwargs["maybe_arg"] = kwargs["maybe_arg"]
-#         return preprocess_kwargs, {}, {}
-
-#     def preprocess(self, inputs, maybe_arg=2):
-#         """
-#         will take the originally defined inputs, and turn them into something feedable to the model. It might contain more information and is usually a Dict.
-#         """
-#         model_input = Tensor(inputs["input_ids"])
-#         return {"model_input": model_input}
-
-#     def _forward(self, model_inputs):
-#         """
-#         _forward is the implementation detail and is not meant to be called directly. forward is the preferred called method as it contains safeguards to make sure everything is working on the expected device. If anything is linked to a real model it belongs in the _forward method, anything else is in the preprocess/postprocess.
-#         """
-#         # model_inputs == {"model_input": model_input}
-#         outputs = self.model(**model_inputs)
-#         # Maybe {"logits": Tensor(...)}
-#         return outputs
-
-#     def postprocess(self, model_outputs):
-#         """
-#         postprocess methods will take the output of _forward and turn it into the final output that was decided earlier.
-#         """
-#         best_class = model_outputs["logits"].softmax(-1)
-#         return best_class
