@@ -72,11 +72,14 @@ profile_default/
 ipython_config.py
 
 # Environments
-.env          # Local environment variables (NEVER commit!)
-.env.local    # Local overrides
-.env.cloud    # Cloud-specific config (NEVER commit!)
-.envrc        # direnv config
 # NOTE: .env.template is tracked - it contains safe defaults
+# Local environment variables (NEVER commit!)
+.env
+.env.local
+# Cloud-specific config (NEVER commit!)
+.env.cloud
+# direnv config
+.envrc
 .venv
 env/
 venv/
@@ -276,6 +279,10 @@ MultiBench/
 # ==============================================================================
 # AI Tools and Services
 # ==============================================================================
+
+# Claude Code
+# User-specific local settings
+.claude/settings.local.json
 
 # Abstra
 .abstra/
