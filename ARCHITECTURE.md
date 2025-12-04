@@ -49,7 +49,7 @@ encoder = Text_to_Vec(base_model="facebook/bart-base", output_dim=1024)
 semantic_vector = encoder(input_text)  # Returns (batch, 1024)
 ```
 
-**Examples**: `text_2_vec.py`, `wav_2_vec.py`, `img_2_vec.py`
+**Examples**: `semantic_to_vec.py`, `waveform_to_vec.py`, `visual_to_vec.py`
 
 ---
 
@@ -74,7 +74,7 @@ decoder = Vec_to_Text(base_model="facebook/bart-base", output_dim=1024)
 text_output = decoder(semantic_vector)  # Returns str or List[str]
 ```
 
-**Examples**: `vec_2_text.py`, `vec_2_audio.py` (experimental), `vec_2_img.py` (experimental)
+**Examples**: `vec_to_semantic.py`, `vec_to_waveform.py` (experimental), `vec_to_visual.py` (experimental)
 
 ---
 
@@ -109,8 +109,8 @@ adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
 ### Files
 | Component | Pattern | Example |
 |-----------|---------|---------|
-| Encoder | `{modality}_2_vec.py` | `text_2_vec.py` |
-| Decoder | `vec_2_{modality}.py` | `vec_2_text.py` |
+| Encoder | `{modality}_to_vec.py` | `semantic_to_vec.py` |
+| Decoder | `vec_to_{modality}.py` | `vec_to_semantic.py` |
 
 **Rule**: Lowercase with underscores, use `2` (not `to`)
 
@@ -203,14 +203,14 @@ cs627/
 ├── src/
 │   ├── Encoders/
 │   │   ├── encoder_boilerplate.py  # Template for new encoders
-│   │   ├── text_2_vec.py
-│   │   ├── wav_2_vec.py
-│   │   └── img_2_vec.py
+│   │   ├── semantic_to_vec.py
+│   │   ├── waveform_to_vec.py
+│   │   └── visual_to_vec.py
 │   ├── Decoders/
 │   │   ├── decoder_boilerplate.py  # Template for new decoders
-│   │   ├── vec_2_text.py
-│   │   ├── vec_2_audio.py
-│   │   └── vec_2_img.py
+│   │   ├── vec_to_semantic.py
+│   │   ├── vec_to_waveform.py
+│   │   └── vec_to_visual.py
 │   ├── Training/
 │   │   └── encoder_trainers.py     # MoCo implementation
 │   └── utils/

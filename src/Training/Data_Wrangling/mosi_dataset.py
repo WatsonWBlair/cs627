@@ -296,7 +296,7 @@ class MOSIRawVideoDataset(Dataset):
                     try:
                         waveform, sr = librosa.load(audio_path, sr=16000, mono=True)
                         audio_data = waveform  # numpy array
-                    except Exception as e:
+                    except (RuntimeError, OSError, ValueError) as e:
                         print(f"  [WARNING] Failed to load audio {file_basename}: {e}")
                         if 'audio' in self.required_modalities:
                             skipped_no_audio += 1
@@ -308,7 +308,7 @@ class MOSIRawVideoDataset(Dataset):
                     try:
                         frame = PILImage.open(video_path).convert('RGB')
                         video_data = np.array(frame)  # numpy array (H, W, 3)
-                    except Exception as e:
+                    except (OSError, ValueError) as e:
                         print(f"  [WARNING] Failed to load frame {file_basename}: {e}")
                         if 'video' in self.required_modalities:
                             skipped_no_video += 1
@@ -344,10 +344,13 @@ class MOSIRawVideoDataset(Dataset):
                     'segment_id': seg_id
                 })
 
-            except KeyError:
+            except KeyError as e:
+                # Missing data for this segment
                 skipped_no_data += 1
                 continue
-            except Exception as e:
+            except (ValueError, AttributeError, IndexError, TypeError, UnicodeDecodeError) as e:
+                # Data format or parsing error
+                print(f"  [WARNING] Failed to parse data for {seg_id}: {e}")
                 skipped_no_data += 1
                 continue
 

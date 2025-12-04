@@ -165,7 +165,7 @@ cs627/
 │   └── ...                    # Other utilities
 ├── .github/workflows/         # CI/CD pipelines
 │   └── smoke-tests.yml        # Automated smoke tests for PRs
-├── litrature/                 # Research papers and notes
+├── literature/                 # Research papers and notes
 │   ├── Paper.txt              # Companion research paper
 │   └── previous_work/         # Related work and references
 ├── OptimalWeights/            # Trained adapter weights
@@ -236,11 +236,11 @@ This project builds on:
 - **Meta's Large Concept Model** (LCM) - conceptual inspiration
 - **SONAR** - conceptual inspiration for multimodal semantic spaces
 
-See `litrature/` directory for full paper collection and `litrature/Paper.txt` for the companion research paper.
+See `literature/` directory for full paper collection and `literature/Paper.txt` for the companion research paper.
 
 ## Contributing
 
-This is a research project for CS627. For questions or contributions, please refer to the companion paper in `litrature/Paper.txt` or contact the team.
+This is a research project for CS627. For questions or contributions, please refer to the companion paper in `literature/Paper.txt` or contact the team.
 
 ## References
 

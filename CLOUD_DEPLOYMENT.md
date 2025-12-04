@@ -319,6 +319,94 @@ ls -lh results/encoder_alignment/checkpoint-*/
 
 # List adapter weights
 ls -lh OptimalWeights/
+ls -lh CandidateWeights/
+```
+
+## Weight Management Workflow
+
+This project uses a two-tier weight management system to enable safe experimentation and version control:
+
+### Weight Directories
+
+1. **OptimalWeights/** - Production-ready adapter weights
+   - Verified to meet performance criteria
+   - Used by default when loading encoders/decoders
+   - Version controlled in Git (tracked in repository)
+   - Example: `OptimalWeights/facebook_bart-base_text_enc_weights.pth`
+
+2. **CandidateWeights/** - Experimental weights from training runs
+   - Organized by instance and timestamp: `CandidateWeights/{instance_id}_{timestamp}/`
+   - NOT version controlled (in `.gitignore`)
+   - Requires evaluation before promotion to OptimalWeights
+   - Example: `CandidateWeights/aws-p3-2xlarge_20240115_143022/facebook_bart-base_text_enc_weights.pth`
+
+### Training Workflow
+
+**During Cloud Training:**
+
+1. Training script automatically saves to `CandidateWeights/{instance}_{timestamp}/`
+2. Each training run creates a new timestamped directory
+3. Original OptimalWeights remain unchanged
+
+```bash
+# Training saves here:
+CandidateWeights/
+└── aws-gpu-instance_20240115_143022/
+    ├── facebook_bart-base_text_enc_weights.pth
+    ├── openai_whisper-small_audio_enc_weights.pth
+    └── nlpconnect_vit-gpt2-image-captioning_image_enc_weights.pth
+```
+
+**After Training:**
+
+1. Download candidate weights from cloud
+2. Run evaluation to compare against current OptimalWeights
+3. If performance improves, promote candidates to OptimalWeights
+4. Commit promoted weights to repository
+
+```bash
+# 1. Download candidate weights
+scp -r user@instance-ip:~/cs627/CandidateWeights/ ./
+
+# 2. Evaluate candidate weights
+python scripts/evaluate_weights.py \
+  --candidate-dir CandidateWeights/aws-gpu-instance_20240115_143022/ \
+  --optimal-dir OptimalWeights/
+
+# 3. Promote if better (overwrites OptimalWeights)
+python scripts/promote_weights.py \
+  --source CandidateWeights/aws-gpu-instance_20240115_143022/ \
+  --dest OptimalWeights/
+
+# 4. Commit to repository
+git add OptimalWeights/
+git commit -m "Promote weights from training run 20240115_143022"
+```
+
+### Best Practices
+
+**DO:**
+- ✅ Always evaluate candidate weights before promotion
+- ✅ Keep training runs organized with meaningful instance IDs
+- ✅ Document evaluation metrics when promoting weights
+- ✅ Commit OptimalWeights to Git after promotion
+- ✅ Archive old OptimalWeights before overwriting (optional)
+
+**DON'T:**
+- ❌ Never commit CandidateWeights to Git (too large, experimental)
+- ❌ Don't overwrite OptimalWeights without evaluation
+- ❌ Don't delete CandidateWeights until confirmed worse than OptimalWeights
+- ❌ Don't skip evaluation metrics in commit messages
+
+### Rollback Strategy
+
+If new weights perform worse than expected:
+
+```bash
+# Revert to previous OptimalWeights
+git log --oneline -- OptimalWeights/  # Find previous commit
+git checkout <commit-hash> -- OptimalWeights/
+git commit -m "Rollback to previous optimal weights"
 ```
 
 ## Downloading Results

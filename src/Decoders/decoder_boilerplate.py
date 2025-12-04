@@ -20,7 +20,7 @@ Example:
 import torch
 from transformers import AutoModel, AutoProcessor  # TODO: Replace with specific classes
 from typing import Optional
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 # TODO: Update these constants
 BASE_MODEL: str = "huggingface/generative-model-name"  # e.g., "facebook/bart-base"
@@ -175,8 +175,8 @@ if __name__ == "__main__":
     except NotImplementedError:
         print(f"[WARNING] Forward pass not implemented yet (expected)")
         print(f"  Implement generation logic in forward() method")
-    except Exception as e:
-        print(f"[FAIL] Error: {e}")
+    except (RuntimeError, AttributeError, TypeError) as e:
+        print(f"[FAIL] Forward pass error: {e}")
         raise
 
     # Test adapter save/load
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         print(f"[OK] Adapter weights saved")
         decoder.adapter.load()
         print(f"[OK] Adapter weights loaded")
-    except Exception as e:
+    except (OSError, PermissionError) as e:
         print(f"[FAIL] Error saving/loading weights: {e}")
 
     print(f"\nVec_to_{Modality} decoder test complete!")

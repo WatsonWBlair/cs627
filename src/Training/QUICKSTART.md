@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ## Step 1: Run Training
 
 ```bash
-python src/Training/train_encoder_alignment.py
+python src/Training/train_encoders.py
 ```
 
 That's it! The script will:
@@ -46,8 +46,8 @@ avg_text_audio_similarity: 0.42 → 0.86  (should increase)
 ## Step 3: Use Trained Encoders
 
 ```python
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
+from src.Encoders.text.semantic_to_vec import Text_to_Vec
+from src.Encoders.audio.waveform_to_vec import Audio_to_Vec
 
 # Load encoders (adapters will load saved weights automatically)
 text_encoder = Text_to_Vec()
@@ -65,7 +65,7 @@ print(f"Cross-modal similarity: {similarity.item():.4f}")
 
 ## Configuration
 
-Edit `train_encoder_alignment.py` to adjust:
+Edit `train_encoders.py` to adjust:
 
 ```python
 # GPU Memory → Batch Size → Queue Size
@@ -126,4 +126,4 @@ results/encoder_alignment/
 - Full documentation: `src/Training/README.md`
 - Trainer details: `src/Training/encoder_trainers.py`
 - Dataset loader: `src/Training/Data_Wrangling/mosi_dataset.py`
-- Paper: `litrature/previous_work/Cross-Modal_Alignment_for_End-to-End_Spoken_Language_Understanding_Based_on_Momentum_Contrastive_Learning.pdf`
+- Paper: `literature/previous_work/Cross-Modal_Alignment_for_End-to-End_Spoken_Language_Understanding_Based_on_Momentum_Contrastive_Learning.pdf`

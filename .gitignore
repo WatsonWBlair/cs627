@@ -72,15 +72,42 @@ profile_default/
 ipython_config.py
 
 # Environments
-.env
-.env.cloud
-.envrc
+.env          # Local environment variables (NEVER commit!)
+.env.local    # Local overrides
+.env.cloud    # Cloud-specific config (NEVER commit!)
+.envrc        # direnv config
+# NOTE: .env.template is tracked - it contains safe defaults
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Cloud Provider Credentials (NEVER commit!)
+# AWS
+.aws/
+*.pem
+aws-credentials.json
+credentials.csv
+*_accessKeys.csv
+
+# Google Cloud Platform
+gcp-credentials.json
+*-service-account.json
+google-credentials.json
+application_default_credentials.json
+
+# Azure
+azure-credentials.json
+.azure/
+
+# API Keys and Tokens
+.secrets/
+secrets.json
+api_keys.txt
+*_token.txt
+*_api_key.txt
 
 # pyenv
 .python-version
@@ -222,11 +249,13 @@ src/Training/Data_Wrangling/archive.zip
 # Project-Specific: CS627 Semantic Vector Space
 # ==============================================================================
 
-# Optimal weights directory (best performing models)
-OptimalWeights/
-
-# Candidate weights (cloud-trained weights awaiting evaluation)
+# Candidate weights (cloud-trained experimental weights - NOT tracked)
+# These are organized by instance/timestamp and require evaluation before promotion
+# Format: CandidateWeights/{instance_id}_{timestamp}/
 CandidateWeights/
+
+# NOTE: OptimalWeights/ IS tracked in Git (production-ready adapter weights)
+# Only promote candidate weights to OptimalWeights after evaluation confirms improvement
 
 # Chatbot data and corpora
 /src/Chatbot/data/save/

@@ -31,6 +31,10 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')  # Use non-GUI backend for server compatibility
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (if it exists)
+load_dotenv()
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -44,14 +48,32 @@ from PIL import Image as PILImage
 # Device configuration
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Hyperparameters
-BATCH_SIZE = 32
-LEARNING_RATE = 1e-4
-EPOCHS = 30
-MOMENTUM = 0.999
-QUEUE_SIZE = 4096  # Increase to 65536 if memory allows
-TEMPERATURE = 0.07
-SEMANTIC_DIM = 1024
+# Hyperparameters (configurable via environment variables)
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', '32'))
+LEARNING_RATE = float(os.getenv('LEARNING_RATE', '0.0001'))
+EPOCHS = int(os.getenv('EPOCHS', '30'))
+MOMENTUM = float(os.getenv('MOMENTUM', '0.999'))
+QUEUE_SIZE = int(os.getenv('QUEUE_SIZE', '4096'))  # Increase to 65536 if memory allows
+TEMPERATURE = float(os.getenv('TEMPERATURE', '0.07'))
+SEMANTIC_DIM = int(os.getenv('SEMANTIC_DIM', '1024'))
+
+# Data paths (configurable via environment variables)
+MOSI_DATA_PATH = os.getenv('MOSI_DATA_PATH', 'data/cmumosi/mosi/')
+AUDIO_DIR = os.getenv('AUDIO_DIR', 'data/cmumosi/audio/')
+VIDEO_DIR = os.getenv('VIDEO_DIR', 'data/cmumosi/frames/')
+
+# Weight directories (configurable via environment variables)
+OPTIMAL_WEIGHTS_DIR = os.getenv('OPTIMAL_WEIGHTS_DIR', 'OptimalWeights')
+CANDIDATE_WEIGHTS_DIR = os.getenv('CANDIDATE_WEIGHTS_DIR', 'CandidateWeights')
+
+# Instance identifier for organizing candidate weights
+INSTANCE_ID = os.getenv('INSTANCE_ID', '') or os.uname().nodename if hasattr(os, 'uname') else 'local'
+
+# Training settings
+TRAIN_RATIO = float(os.getenv('TRAIN_RATIO', '0.7'))
+VAL_RATIO = float(os.getenv('VAL_RATIO', '0.15'))
+RANDOM_SEED = int(os.getenv('RANDOM_SEED', '42'))
+NUM_WORKERS = int(os.getenv('NUM_WORKERS', '0'))
 
 
 class MultiPositiveInfoNCE(nn.Module):
@@ -744,12 +766,15 @@ def main():
     print("Cross-Modal Encoder Training (N Encoder Support)")
     print("=" * 80)
     print(f"Device: {DEVICE}")
+    print(f"Instance ID: {INSTANCE_ID}")
     print(f"Batch size: {BATCH_SIZE}")
     print(f"Learning rate: {LEARNING_RATE}")
     print(f"Epochs: {EPOCHS}")
     print(f"Momentum: {MOMENTUM}")
     print(f"Queue size: {QUEUE_SIZE}")
     print(f"Temperature: {TEMPERATURE}")
+    print(f"Data paths: MOSI={MOSI_DATA_PATH}, Audio={AUDIO_DIR}, Video={VIDEO_DIR}")
+    print(f"Weights will be saved to: {CANDIDATE_WEIGHTS_DIR}/{INSTANCE_ID}_<timestamp>/")
     print("=" * 80)
 
     # Load dataset
@@ -759,12 +784,12 @@ def main():
         # This bypasses preprocessed features and loads raw audio waveforms + video frames
         train_dataset = MOSIRawVideoDataset(
             split='train',
-            mosi_data_path='data/cmumosi/mosi/',
-            audio_dir='data/cmumosi/audio/',
-            video_dir='data/cmumosi/frames/',
-            train_ratio=0.7,
-            val_ratio=0.15,
-            seed=42
+            mosi_data_path=MOSI_DATA_PATH,
+            audio_dir=AUDIO_DIR,
+            video_dir=VIDEO_DIR,
+            train_ratio=TRAIN_RATIO,
+            val_ratio=VAL_RATIO,
+            seed=RANDOM_SEED
         )
         print(f"[OK] Loaded {len(train_dataset)} training samples")
 
@@ -773,8 +798,14 @@ def main():
             print("Run: python extract_test_segments.py")
             return
 
-    except Exception as e:
-        print(f"[ERROR] Failed to load dataset: {e}")
+    except (FileNotFoundError, OSError) as e:
+        print(f"[ERROR] Dataset files not found: {e}")
+        print("Please run data extraction scripts:")
+        print("  python scripts/data_wrangling/download_all_mosi_videos.py")
+        print("  python scripts/data_wrangling/extract_all_segments.py")
+        return
+    except (ValueError, RuntimeError) as e:
+        print(f"[ERROR] Dataset loading error: {e}")
         import traceback
         traceback.print_exc()
         return
@@ -785,7 +816,7 @@ def main():
         batch_size=BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_fn_raw_video,  # Use lazy loading collate function
-        num_workers=0  # Set to 0 for Windows compatibility
+        num_workers=NUM_WORKERS  # Set to 0 for Windows compatibility (configurable via env)
     )
 
     # Initialize encoders
@@ -940,8 +971,13 @@ def main():
         "training_date": datetime.now().isoformat(),
     }
 
-    config_path = "OptimalWeights/training_config.json"
-    os.makedirs("OptimalWeights", exist_ok=True)
+    # Create instance-specific weights directory for candidate weights
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate_dir = os.path.join(CANDIDATE_WEIGHTS_DIR, f"{INSTANCE_ID}_{timestamp}")
+    os.makedirs(candidate_dir, exist_ok=True)
+
+    config_path = os.path.join(candidate_dir, "training_config.json")
+    os.makedirs(OPTIMAL_WEIGHTS_DIR, exist_ok=True)
     with open(config_path, 'w') as f:
         json.dump(training_config, f, indent=2)
     print(f"Training configuration saved to: {config_path}")
@@ -956,6 +992,7 @@ def main():
     print("\n" + "=" * 80)
     print("Training Complete!")
     print("=" * 80)
+    print(f"\nCandidate weights saved to: {candidate_dir}/")
     print("\nAdapter weights saved for:")
     for config in encoder_configs:
         if hasattr(config.encoder, 'adapter'):
@@ -964,12 +1001,14 @@ def main():
     print("  - training_metrics.json (detailed metrics)")
     print("  - loss_curves.png (loss visualization)")
     print("  - epoch_timing.png (timing analysis)")
+    print(f"\nTraining config saved to: {config_path}")
     print("\nNext steps:")
     print("  1. Review training reports in training_reports/")
-    print("  2. Validate encoders produce aligned vectors")
-    print("  3. Train text decoder (python src/Training/train_text_decoder.py)")
-    print("  4. Add specialized encoders for tone, sarcasm, distraction, etc.")
-    print("  5. Test end-to-end pipeline")
+    print("  2. Evaluate candidate weights against current OptimalWeights/")
+    print("  3. If performance improved, promote weights:")
+    print(f"     python scripts/promote_weights.py --source {candidate_dir}/ --dest {OPTIMAL_WEIGHTS_DIR}/")
+    print("  4. Commit promoted weights to repository")
+    print("  5. Train decoders or add specialized encoders")
 
 
 if __name__ == "__main__":

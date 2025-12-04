@@ -22,7 +22,7 @@ pip install -r requirements.txt
 ### 2. Run Encoder Alignment Training
 
 ```bash
-python src/Training/train_encoder_alignment.py
+python src/Training/train_encoders.py
 ```
 
 This will:
@@ -92,8 +92,8 @@ The main trainer for cross-modal alignment.
 
 ```python
 from Training.encoder_trainers import Contrast
-from Encoders.text_2_vec import Text_to_Vec
-from Encoders.wav_2_vec import Audio_to_Vec
+from src.Encoders.text.semantic_to_vec import Text_to_Vec
+from src.Encoders.audio.waveform_to_vec import Audio_to_Vec
 
 # Initialize encoders
 encoders = {
@@ -198,7 +198,7 @@ Each sample contains aligned modalities from one video segment:
 
 ### Training Scripts
 
-#### `train_encoder_alignment.py`
+#### `train_encoders.py`
 
 Main training script for cross-modal encoder alignment.
 

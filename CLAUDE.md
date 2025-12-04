@@ -328,4 +328,4 @@ python test_dataloader_5videos.py
 
 ## References
 
-The companion paper is located at `litrature/Paper.txt` and provides detailed methodology and theoretical foundations. Code is publicly available at: https://github.com/WatsonWBlair/cs627
+The companion paper is located at `literature/Paper.txt` and provides detailed methodology and theoretical foundations. Code is publicly available at: https://github.com/WatsonWBlair/cs627

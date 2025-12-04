@@ -35,9 +35,9 @@ This creates a template encoder file marked as **EXPERIMENTAL** by default. Then
 
 ### Manual Creation
 
-1. Copy `src/Encoders/encoder_boilerplate.py` to `src/Encoders/{modality}_2_vec.py`
+1. Copy `src/Encoders/encoder_boilerplate.py` to `src/Encoders/{modality}_to_vec.py`
 2. Add EXPERIMENTAL marker to module docstring
-3. Follow the patterns in existing encoders (text_2_vec.py, wav_2_vec.py)
+3. Follow the patterns in existing encoders (semantic_to_vec.py, waveform_to_vec.py)
 4. Key requirements:
    - Inherit from `torch.nn.Module`
    - Initialize an `Adapter` in `__init__`
@@ -62,9 +62,9 @@ Then:
 
 ### Manual Creation
 
-1. Copy `src/Decoders/decoder_boilerplate.py` to `src/Decoders/vec_2_{modality}.py`
+1. Copy `src/Decoders/decoder_boilerplate.py` to `src/Decoders/vec_to_{modality}.py`
 2. Add EXPERIMENTAL marker to module docstring (if not already present)
-3. Follow the patterns in existing decoders (vec_2_text.py)
+3. Follow the patterns in existing decoders (vec_to_semantic.py)
 4. Key requirements:
    - Inherit from `torch.nn.Module`
    - Initialize an `Adapter` in `__init__`
@@ -78,10 +78,10 @@ New encoders and decoders should be marked **EXPERIMENTAL** until fully tested. 
 2. Ensure the module passes functional tests:
    ```bash
    # For encoders
-   python tools/validate_module.py src/Encoders/{modality}_2_vec.py
+   python tools/validate_module.py src/Encoders/{modality}_to_vec.py
 
    # For decoders
-   python tools/validate_module.py src/Decoders/vec_2_{modality}.py
+   python tools/validate_module.py src/Decoders/vec_to_{modality}.py
    ```
 3. Complete evaluation using metrics from EVALUATION.md
 4. Document evaluation results in a PR
@@ -94,8 +94,8 @@ Experimental modules are skipped. Only production-ready modules are functionally
 
 ```bash
 # Test single module
-python tools/validate_module.py src/Encoders/{modality}_2_vec.py
-python tools/validate_module.py src/Decoders/vec_2_{modality}.py
+python tools/validate_module.py src/Encoders/{modality}_to_vec.py
+python tools/validate_module.py src/Decoders/vec_to_{modality}.py
 
 # Test all modules
 python tools/validate_module.py --all
@@ -105,13 +105,13 @@ python tools/validate_module.py --all
 
 ```python
 # Test encoder
-from src.Encoders.{modality}_2_vec import {Modality}_to_Vec
+from src.Encoders.{modality}_to_vec import {Modality}_to_Vec
 encoder = {Modality}_to_Vec()
 vector = encoder(sample_data)
 print(f"Output shape: {vector.shape}")  # Should be (batch_size, 1024)
 
 # Test decoder
-from src.Decoders.vec_2_{modality} import Vec_to_{Modality}
+from src.Decoders.vec_to_{modality} import Vec_to_{Modality}
 decoder = Vec_to_{Modality}()
 output = decoder(vector)
 ```
@@ -122,7 +122,7 @@ output = decoder(vector)
 
 - **Encoders**: `{Modality}_to_Vec` (e.g., `Audio_to_Vec`)
 - **Decoders**: `Vec_to_{Modality}` (e.g., `Vec_to_Audio`)
-- **Files**: `{modality}_2_vec.py` for encoders, `vec_2_{modality}.py` for decoders
+- **Files**: `{modality}_to_vec.py` for encoders, `vec_to_{modality}.py` for decoders
 
 ### Required Components
 

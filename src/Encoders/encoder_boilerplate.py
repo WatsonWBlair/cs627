@@ -17,7 +17,7 @@ Example:
 import torch
 from transformers import AutoModel, AutoProcessor  # TODO: Replace with specific classes
 from typing import Union, Optional, List
-from utils.Adapter import Adapter
+from src.utils.Adapter import Adapter
 
 # TODO: Update these constants
 BASE_MODEL: str = "huggingface/model-name"  # e.g., "facebook/bart-base"
@@ -174,8 +174,8 @@ if __name__ == "__main__":
         print(f"  Expected: (batch_size, 1024)")
         assert semantic_vec.shape[-1] == 1024, "Output dimension should be 1024"
         print(f"[OK] Output dimension correct")
-    except Exception as e:
-        print(f"[FAIL] Error: {e}")
+    except (RuntimeError, AttributeError, TypeError, AssertionError) as e:
+        print(f"[FAIL] Forward pass error: {e}")
         raise
 
     # Test adapter save/load
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         print(f"[OK] Adapter weights saved")
         encoder.adapter.load()
         print(f"[OK] Adapter weights loaded")
-    except Exception as e:
+    except (OSError, PermissionError) as e:
         print(f"[FAIL] Error saving/loading weights: {e}")
 
     print(f"\n{Modality}_to_Vec encoder test complete!")

@@ -18,7 +18,7 @@ Semantic-Vector Space → MLP Adapter → Pretrained Decoder → Output Modality
 
 ## Current Decoders
 
-### Text Decoder (`vec_2_text.py`)
+### Text Decoder (`vec_to_semantic.py`)
 - **Class**: `Vec_to_Text`
 - **Base Model**: `facebook/bart-base`
 - **Tokenizer**: `BartTokenizer`
@@ -26,7 +26,7 @@ Semantic-Vector Space → MLP Adapter → Pretrained Decoder → Output Modality
 - **Architecture**: Semantic Vector → Adapter → BART decoder → Text
 - **Status**: Fully implemented
 
-### Image Decoder (`vec_2_img.py`)
+### Image Decoder (`vec_to_visual.py`)
 - **Class**: `Vec_to_Image`
 - **Base Model**: `CompVis/stable-diffusion-v1-4`
 - **Pipeline**: `StableDiffusionPipeline`
@@ -34,7 +34,7 @@ Semantic-Vector Space → MLP Adapter → Pretrained Decoder → Output Modality
 - **Architecture**: Semantic Vector → Adapter (replaces text encoder) → Stable Diffusion → Image
 - **Status**: EXPERIMENTAL - Adapter integration with Stable Diffusion needs validation
 
-### Audio Decoder (`vec_2_audio.py`)
+### Audio Decoder (`vec_to_waveform.py`)
 - **Class**: `Vec_to_Audio`
 - **Base Model**: `suno/bark-small` (text-to-speech)
 - **Purpose**: Generates speech audio from semantic vectors

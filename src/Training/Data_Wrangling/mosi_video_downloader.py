@@ -107,7 +107,16 @@ def download_single_video(video_id: str, output_dir: str) -> Dict:
             'error': error_msg[:200]
         }
 
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError) as e:
+        # File system or network errors
+        return {
+            'video_id': video_id,
+            'status': 'network_error',
+            'error': str(e)[:200]
+        }
+
+    except (KeyError, AttributeError, RuntimeError) as e:
+        # Parsing or runtime errors
         return {
             'video_id': video_id,
             'status': 'error',
@@ -192,7 +201,17 @@ def download_mosi_videos(
                     else:
                         manifest['failed_downloads'] += 1
 
-                except Exception as e:
+                except (concurrent.futures.TimeoutError, concurrent.futures.CancelledError) as e:
+                    # Future execution errors
+                    manifest['videos'][video_id] = {
+                        'video_id': video_id,
+                        'status': 'timeout',
+                        'error': str(e)[:200]
+                    }
+                    manifest['failed_downloads'] += 1
+
+                except (KeyError, AttributeError) as e:
+                    # Result processing errors
                     manifest['videos'][video_id] = {
                         'video_id': video_id,
                         'status': 'exception',

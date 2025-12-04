@@ -18,21 +18,21 @@ This design is **100x cheaper to train** than full fine-tuning because only the 
 
 ## Current Encoders
 
-### Text Encoder (`text_2_vec.py`)
+### Text Encoder (`semantic_to_vec.py`)
 - **Class**: `Text_to_Vec`
 - **Base Model**: `facebook/bart-base`
 - **Tokenizer**: `BartTokenizer`
 - **Purpose**: Serves as the **ground truth** encoder for the semantic space
 - **Architecture**: BART encoder → Mean pooling → Adapter → Semantic Vector
 
-### Audio Encoder (`wav_2_vec.py`)
+### Audio Encoder (`waveform_to_vec.py`)
 - **Class**: `Audio_to_Vec`
 - **Base Model**: `openai/whisper-small`
 - **Processor**: `WhisperProcessor`
 - **Purpose**: Converts spoken language to semantic vectors
 - **Architecture**: Whisper encoder (frozen) → Mean pooling → Adapter → Semantic Vector
 
-### Image Encoder (`img_2_vec.py`)
+### Image Encoder (`visual_to_vec.py`)
 - **Class**: `Image_to_Vec`
 - **Base Model**: `nlpconnect/vit-gpt2-image-captioning`
 - **Processor**: `ViTImageProcessor`
@@ -96,7 +96,7 @@ your_encoder.adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
 
 Verify your encoder produces vectors similar to semantically-related content:
 - Encode sample data from your modality
-- Encode semantically-equivalent text using `text_2_vec.py`
+- Encode semantically-equivalent text using `semantic_to_vec.py`
 - Measure cosine similarity (should be high for related content)
 
 ### Step 5: Add to Training Notebooks
