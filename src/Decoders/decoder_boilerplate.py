@@ -155,9 +155,9 @@ if __name__ == "__main__":
     # Check if corresponding encoder exists
     try:
         from Encoders.{modality}_2_vec import {Modality}_to_Vec
-        print(f"✓ Corresponding encoder found: {Modality}_to_Vec")
+        print(f"[OK] Corresponding encoder found: {Modality}_to_Vec")
     except ImportError:
-        print(f"✗ WARNING: No encoder found at Encoders/{modality}_2_vec.py")
+        print(f"[FAIL] WARNING: No encoder found at Encoders/{modality}_2_vec.py")
         print(f"  A decoder requires a trained encoder for backtranslation!")
 
     # Initialize decoder
@@ -168,25 +168,25 @@ if __name__ == "__main__":
 
     try:
         output = decoder(sample_vec)
-        print(f"✓ Forward pass successful")
+        print(f"[OK] Forward pass successful")
         print(f"  Input shape: {sample_vec.shape}")
         print(f"  Output type: {type(output)}")
         # TODO: Add output shape/format validation
     except NotImplementedError:
-        print(f"⚠ Forward pass not implemented yet (expected)")
+        print(f"[WARNING] Forward pass not implemented yet (expected)")
         print(f"  Implement generation logic in forward() method")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"[FAIL] Error: {e}")
         raise
 
     # Test adapter save/load
     try:
         decoder.adapter.save()
-        print(f"✓ Adapter weights saved")
+        print(f"[OK] Adapter weights saved")
         decoder.adapter.load()
-        print(f"✓ Adapter weights loaded")
+        print(f"[OK] Adapter weights loaded")
     except Exception as e:
-        print(f"✗ Error saving/loading weights: {e}")
+        print(f"[FAIL] Error saving/loading weights: {e}")
 
     print(f"\nVec_to_{Modality} decoder test complete!")
     print(f"\nNext steps:")

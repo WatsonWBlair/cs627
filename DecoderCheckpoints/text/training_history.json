@@ -1,0 +1,193 @@
+{
+  "hyperparameters": {
+    "batch_size": 16,
+    "learning_rate": 0.0001,
+    "epochs": 20,
+    "eval_semantic_every": 10,
+    "training_approach": "hybrid_teacher_forcing"
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "metrics": {
+        "teacher_forcing_loss": 3.6285884380340576,
+        "semantic_similarity": 0.7524434328079224,
+        "semantic_drift": 0.24755656719207764
+      },
+      "duration": 57.819695711135864
+    },
+    {
+      "epoch": 2,
+      "metrics": {
+        "teacher_forcing_loss": 3.1769221782684327,
+        "semantic_similarity": 0.7941924333572388,
+        "semantic_drift": 0.20580756664276123
+      },
+      "duration": 57.19110918045044
+    },
+    {
+      "epoch": 3,
+      "metrics": {
+        "teacher_forcing_loss": 2.9245059490203857,
+        "semantic_similarity": 0.76473069190979,
+        "semantic_drift": 0.23526930809020996
+      },
+      "duration": 57.45737361907959
+    },
+    {
+      "epoch": 4,
+      "metrics": {
+        "teacher_forcing_loss": 2.776800012588501,
+        "semantic_similarity": 0.7925114631652832,
+        "semantic_drift": 0.2074885368347168
+      },
+      "duration": 59.2480742931366
+    },
+    {
+      "epoch": 5,
+      "metrics": {
+        "teacher_forcing_loss": 2.6777908325195314,
+        "semantic_similarity": 0.788366973400116,
+        "semantic_drift": 0.21163302659988403
+      },
+      "duration": 78.50672054290771
+    },
+    {
+      "epoch": 6,
+      "metrics": {
+        "teacher_forcing_loss": 2.490073490142822,
+        "semantic_similarity": 0.8166521787643433,
+        "semantic_drift": 0.18334782123565674
+      },
+      "duration": 72.11602139472961
+    },
+    {
+      "epoch": 7,
+      "metrics": {
+        "teacher_forcing_loss": 2.4409550189971925,
+        "semantic_similarity": 0.8252021074295044,
+        "semantic_drift": 0.1747978925704956
+      },
+      "duration": 69.80602812767029
+    },
+    {
+      "epoch": 8,
+      "metrics": {
+        "teacher_forcing_loss": 2.3950128078460695,
+        "semantic_similarity": 0.8146345615386963,
+        "semantic_drift": 0.1853654384613037
+      },
+      "duration": 80.31642818450928
+    },
+    {
+      "epoch": 9,
+      "metrics": {
+        "teacher_forcing_loss": 2.3540047645568847,
+        "semantic_similarity": 0.8052821159362793,
+        "semantic_drift": 0.1947178840637207
+      },
+      "duration": 79.62271666526794
+    },
+    {
+      "epoch": 10,
+      "metrics": {
+        "teacher_forcing_loss": 2.2367547512054444,
+        "semantic_similarity": 0.7968095541000366,
+        "semantic_drift": 0.20319044589996338
+      },
+      "duration": 79.06739020347595
+    },
+    {
+      "epoch": 11,
+      "metrics": {
+        "teacher_forcing_loss": 2.1868903636932373,
+        "semantic_similarity": 0.7996677160263062,
+        "semantic_drift": 0.20033228397369385
+      },
+      "duration": 74.00846266746521
+    },
+    {
+      "epoch": 12,
+      "metrics": {
+        "teacher_forcing_loss": 2.1098995923995973,
+        "semantic_similarity": 0.8307294845581055,
+        "semantic_drift": 0.16927051544189453
+      },
+      "duration": 73.3874032497406
+    },
+    {
+      "epoch": 13,
+      "metrics": {
+        "teacher_forcing_loss": 2.0455813646316527,
+        "semantic_similarity": 0.8450660705566406,
+        "semantic_drift": 0.15493392944335938
+      },
+      "duration": 75.81356310844421
+    },
+    {
+      "epoch": 14,
+      "metrics": {
+        "teacher_forcing_loss": 2.068515682220459,
+        "semantic_similarity": 0.8312391042709351,
+        "semantic_drift": 0.16876089572906494
+      },
+      "duration": 79.32101321220398
+    },
+    {
+      "epoch": 15,
+      "metrics": {
+        "teacher_forcing_loss": 2.0559958457946776,
+        "semantic_similarity": 0.7926968336105347,
+        "semantic_drift": 0.20730316638946533
+      },
+      "duration": 78.43858981132507
+    },
+    {
+      "epoch": 16,
+      "metrics": {
+        "teacher_forcing_loss": 2.015350103378296,
+        "semantic_similarity": 0.8040771484375,
+        "semantic_drift": 0.1959228515625
+      },
+      "duration": 74.90925765037537
+    },
+    {
+      "epoch": 17,
+      "metrics": {
+        "teacher_forcing_loss": 1.9708311080932617,
+        "semantic_similarity": 0.8598461151123047,
+        "semantic_drift": 0.1401538848876953
+      },
+      "duration": 72.59641170501709
+    },
+    {
+      "epoch": 18,
+      "metrics": {
+        "teacher_forcing_loss": 2.008291482925415,
+        "semantic_similarity": 0.8579549789428711,
+        "semantic_drift": 0.1420450210571289
+      },
+      "duration": 74.31456303596497
+    },
+    {
+      "epoch": 19,
+      "metrics": {
+        "teacher_forcing_loss": 1.9857255697250367,
+        "semantic_similarity": 0.8417419791221619,
+        "semantic_drift": 0.15825802087783813
+      },
+      "duration": 78.2974066734314
+    },
+    {
+      "epoch": 20,
+      "metrics": {
+        "teacher_forcing_loss": 1.9637274742126465,
+        "semantic_similarity": 0.8448583483695984,
+        "semantic_drift": 0.1551416516304016
+      },
+      "duration": 79.45924305915833
+    }
+  ],
+  "best_loss": 1.9637274742126465,
+  "total_duration": 1451.7948491573334
+}

@@ -168,23 +168,23 @@ if __name__ == "__main__":
     # Test forward pass
     try:
         semantic_vec = encoder(sample_input)
-        print(f"✓ Forward pass successful")
+        print(f"[OK] Forward pass successful")
         print(f"  Input: {type(sample_input)}")
         print(f"  Output shape: {semantic_vec.shape}")
         print(f"  Expected: (batch_size, 1024)")
         assert semantic_vec.shape[-1] == 1024, "Output dimension should be 1024"
-        print(f"✓ Output dimension correct")
+        print(f"[OK] Output dimension correct")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"[FAIL] Error: {e}")
         raise
 
     # Test adapter save/load
     try:
         encoder.adapter.save()
-        print(f"✓ Adapter weights saved")
+        print(f"[OK] Adapter weights saved")
         encoder.adapter.load()
-        print(f"✓ Adapter weights loaded")
+        print(f"[OK] Adapter weights loaded")
     except Exception as e:
-        print(f"✗ Error saving/loading weights: {e}")
+        print(f"[FAIL] Error saving/loading weights: {e}")
 
     print(f"\n{Modality}_to_Vec encoder test complete!")

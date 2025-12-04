@@ -117,11 +117,11 @@ DO NOT USE IN PRODUCTION.
     with open(output_path, 'w') as f:
         f.write(content)
 
-    print(f"✓ Generated decoder: {output_path}")
-    print(f"✓ Class name: {class_name}")
-    print(f"✓ Base model: {base_model}")
+    print(f"[OK] Generated decoder: {output_path}")
+    print(f"[OK] Class name: {class_name}")
+    print(f"[OK] Base model: {base_model}")
     if experimental:
-        print("✓ Marked as EXPERIMENTAL")
+        print("[OK] Marked as EXPERIMENTAL")
     print()
     print("Next steps:")
     print(f"  1. Edit {output_path} and replace TODO markers:")
@@ -212,7 +212,7 @@ Examples:
     )
 
     print()
-    print("✓ Decoder generation complete!")
+    print("[OK] Decoder generation complete!")
 
 
 if __name__ == "__main__":

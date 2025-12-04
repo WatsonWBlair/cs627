@@ -106,6 +106,7 @@ class MOSIRawVideoDataset(Dataset):
     This is the RECOMMENDED approach for training encoders on raw modalities.
 
     Usage:
+        # Full multimodal dataset (default - requires all modalities)
         dataset = MOSIRawVideoDataset(
             split='train',
             mosi_data_path='data/cmumosi/mosi/',
@@ -113,12 +114,21 @@ class MOSIRawVideoDataset(Dataset):
             video_dir='data/cmumosi/frames/'
         )
 
+        # Text-only dataset (useful when audio/video not yet extracted)
+        dataset = MOSIRawVideoDataset(
+            split='train',
+            mosi_data_path='data/cmumosi/mosi/',
+            audio_dir='data/cmumosi/audio/',
+            video_dir='data/cmumosi/frames/',
+            required_modalities=['text']  # Only require text
+        )
+
         sample = dataset[0]
         # Returns:
         # {
         #     'text': "I really enjoyed the movie",
-        #     'audio': 'data/cmumosi/audio/BvYR0L6f2Ig.wav',
-        #     'video': 'data/cmumosi/frames/BvYR0L6f2Ig.jpg',
+        #     'audio': 'data/cmumosi/audio/BvYR0L6f2Ig.wav' or None,
+        #     'video': 'data/cmumosi/frames/BvYR0L6f2Ig.jpg' or None,
         #     'label': 2.5,
         #     'segment_id': 'BvYR0L6f2Ig'
         # }
@@ -132,7 +142,8 @@ class MOSIRawVideoDataset(Dataset):
         video_dir: str = 'data/cmumosi/frames/',
         train_ratio: float = 0.7,
         val_ratio: float = 0.15,
-        seed: int = 42
+        seed: int = 42,
+        required_modalities: list = None
     ):
         """
         Args:
@@ -143,6 +154,10 @@ class MOSIRawVideoDataset(Dataset):
             train_ratio: Proportion for training split (default: 0.7)
             val_ratio: Proportion for validation split (default: 0.15)
             seed: Random seed for reproducible splits (default: 42)
+            required_modalities: List of modalities that must be present
+                                (default: ['text', 'audio', 'video'] for backward compatibility)
+                                Options: 'text', 'audio', 'video'
+                                Example: ['text'] for text-only training
         """
         super().__init__()
 
@@ -152,6 +167,17 @@ class MOSIRawVideoDataset(Dataset):
             self.mosi_data_path = self.mosi_data_path + '/'
         self.audio_dir = audio_dir
         self.video_dir = video_dir
+
+        # Default to requiring all modalities for backward compatibility
+        if required_modalities is None:
+            required_modalities = ['text', 'audio', 'video']
+        self.required_modalities = required_modalities
+
+        # Validate modality names
+        valid_modalities = {'text', 'audio', 'video'}
+        for modality in self.required_modalities:
+            if modality not in valid_modalities:
+                raise ValueError(f"Invalid modality '{modality}'. Must be one of: {valid_modalities}")
 
         # Import MOSI SDK
         try:
@@ -164,6 +190,7 @@ class MOSIRawVideoDataset(Dataset):
             )
 
         print(f"Loading raw MOSI data from {self.mosi_data_path}...")
+        print(f"  Required modalities: {', '.join(self.required_modalities)}")
 
         # Load raw data (for text transcripts)
         print("  Loading words sequence...")
@@ -247,13 +274,23 @@ class MOSIRawVideoDataset(Dataset):
                 audio_path = os.path.join(self.audio_dir, f"{file_basename}.wav")
                 video_path = os.path.join(self.video_dir, f"{file_basename}.jpg")
 
-                if not os.path.exists(audio_path):
+                audio_exists = os.path.exists(audio_path)
+                video_exists = os.path.exists(video_path)
+
+                # Skip if required modality is missing
+                if 'audio' in self.required_modalities and not audio_exists:
                     skipped_no_audio += 1
                     continue
 
-                if not os.path.exists(video_path):
+                if 'video' in self.required_modalities and not video_exists:
                     skipped_no_video += 1
                     continue
+
+                # Set to None if optional modality is missing
+                if not audio_exists:
+                    audio_path = None
+                if not video_exists:
+                    video_path = None
 
                 # Extract text transcript
                 words_data = words_seq.data[seg_id]
@@ -294,16 +331,27 @@ class MOSIRawVideoDataset(Dataset):
 
         print(f"[OK] Loaded {len(self.samples)} samples for {split} split")
         if skipped_no_audio > 0:
-            print(f"  [INFO] Skipped {skipped_no_audio} segments (no audio file)")
+            print(f"  [INFO] Skipped {skipped_no_audio} segments (missing required audio)")
         if skipped_no_video > 0:
-            print(f"  [INFO] Skipped {skipped_no_video} segments (no video frame)")
+            print(f"  [INFO] Skipped {skipped_no_video} segments (missing required video)")
         if skipped_no_data > 0:
             print(f"  [INFO] Skipped {skipped_no_data} segments (missing data)")
 
+        # Count optional modality availability
+        if len(self.samples) > 0:
+            if 'audio' not in self.required_modalities:
+                audio_available = sum(1 for s in self.samples if s['audio'] is not None)
+                print(f"  [INFO] {audio_available}/{len(self.samples)} samples have optional audio")
+            if 'video' not in self.required_modalities:
+                video_available = sum(1 for s in self.samples if s['video'] is not None)
+                print(f"  [INFO] {video_available}/{len(self.samples)} samples have optional video")
+
         if len(self.samples) > 0:
             print(f"  Sample text: '{self.samples[0]['text'][:60]}...'")
-            print(f"  Sample audio: {os.path.basename(self.samples[0]['audio'])}")
-            print(f"  Sample video: {os.path.basename(self.samples[0]['video'])}")
+            if self.samples[0]['audio'] is not None:
+                print(f"  Sample audio: {os.path.basename(self.samples[0]['audio'])}")
+            if self.samples[0]['video'] is not None:
+                print(f"  Sample video: {os.path.basename(self.samples[0]['video'])}")
 
     def __len__(self) -> int:
         return len(self.samples)

@@ -108,7 +108,7 @@ def get_segment_timestamps(seg_id: str, mosi_data_path: str) -> Tuple[float, flo
     Get start and end timestamps for a segment from MOSI data.
 
     Args:
-        seg_id: MOSI segment ID
+        seg_id: MOSI segment ID (format: video_id[segment_num], e.g., "03bSnISJMiM[0]")
         mosi_data_path: Path to MOSI dataset
 
     Returns:
@@ -116,6 +116,7 @@ def get_segment_timestamps(seg_id: str, mosi_data_path: str) -> Tuple[float, flo
     """
     try:
         from mmsdk import mmdatasdk
+        import numpy as np
     except ImportError:
         raise ImportError(
             "CMU-MultimodalSDK not installed. Install it:\n"
@@ -125,22 +126,36 @@ def get_segment_timestamps(seg_id: str, mosi_data_path: str) -> Tuple[float, flo
 
     # Load MOSI data to get timestamps
     try:
-        # Load words sequence (has timestamps)
-        raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, mosi_data_path)
-        words_seq = raw_data.computational_sequences['words']
+        # Parse segment ID to get video_id and segment number
+        if '[' not in seg_id:
+            raise ValueError(f"Segment ID must be in format 'video_id[num]', got: {seg_id}")
 
-        # Get segment data
-        if seg_id in words_seq.data:
-            segment_data = words_seq.data[seg_id]
-            intervals = segment_data['intervals']
+        video_id, segment_num = parse_segment_id(seg_id)
 
-            # intervals is array of [start, end] timestamps
-            start_time = float(intervals[0][0])
-            end_time = float(intervals[-1][1])
+        # Load labels (opinion segments with timestamps)
+        highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, mosi_data_path)
+        highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, mosi_data_path)
+        labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
 
-            return start_time, end_time
-        else:
-            raise ValueError(f"Segment {seg_id} not found in MOSI data")
+        # Get video's label data
+        if video_id not in labels_seq.data:
+            raise ValueError(f"Video {video_id} not found in MOSI labels")
+
+        labels_data = labels_seq.data[video_id]
+        intervals = np.array(labels_data['intervals'])  # Shape: (num_segments, 2)
+
+        # Check if segment number is valid
+        if segment_num >= len(intervals):
+            raise ValueError(
+                f"Segment number {segment_num} out of range for video {video_id} "
+                f"(has {len(intervals)} segments)"
+            )
+
+        # Extract timestamps for this specific segment
+        start_time = float(intervals[segment_num][0])
+        end_time = float(intervals[segment_num][1])
+
+        return start_time, end_time
 
     except Exception as e:
         raise RuntimeError(f"Failed to get timestamps for {seg_id}: {e}")

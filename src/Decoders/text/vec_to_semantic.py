@@ -13,6 +13,16 @@ class Vec_to_Text(torch.nn.Module):
     """
     Text decoder using Adapter + BART decoder.
 
+    Current Implementation:
+        - Supports single semantic vectors (batch, 1024)
+        - Maps to BART encoder space via MLP adapter
+        - Uses BART decoder for text generation
+
+    Future Goals:
+        - Variable-length sequence support (batch, seq_len, 1024)
+        - Streaming generation capabilities
+        - See: https://github.com/WatsonWBlair/cs627/issues for roadmap
+
     Args:
         base_model: HuggingFace BART model identifier (default: "facebook/bart-base")
         input_dim: Semantic vector dimension (default: 1024)
