@@ -33,6 +33,7 @@ Usage:
 """
 
 import os
+import pickle
 import torch
 import numpy as np
 from torch.utils.data import Dataset
@@ -101,7 +102,8 @@ class MOSIRawVideoDataset(Dataset):
     """
     PyTorch Dataset for CMU-MOSI TRUE raw multimodal data from extracted videos.
 
-    This dataset eagerly loads all data into RAM during initialization:
+    This dataset loads segment IDs from preprocessed pkl files which have fine-grained
+    opinion segments (1528+ segments), then loads raw multimodal data:
     - Raw text transcripts (strings from MOSI words sequence)
     - Audio waveforms (16kHz mono numpy arrays from .wav files)
     - Video frames (RGB numpy arrays from .jpg files)
@@ -183,9 +185,35 @@ class MOSIRawVideoDataset(Dataset):
             if modality not in valid_modalities:
                 raise ValueError(f"Invalid modality '{modality}'. Must be one of: {valid_modalities}")
 
-        # Import MOSI SDK
+        print(f"Loading raw MOSI data from {self.mosi_data_path}...")
+        print(f"  Required modalities: {', '.join(self.required_modalities)}")
+
+        # Try to load from preprocessed pkl files first (fine-grained segments)
+        pkl_split = 'valid' if split == 'valid' else split
+        pkl_path = os.path.join(self.mosi_data_path, f'preprocessed_{pkl_split}.pkl')
+
+        if os.path.exists(pkl_path):
+            print(f"  Loading segment IDs from {pkl_path}...")
+            with open(pkl_path, 'rb') as f:
+                pkl_data = pickle.load(f)
+            split_segment_ids = pkl_data['segment_ids']
+            print(f"  Found {len(split_segment_ids)} fine-grained segments for {split} split")
+        else:
+            # Fall back to SDK-based segment loading (coarse-grained)
+            print(f"  [WARNING] {pkl_path} not found, falling back to SDK-based loading")
+            split_segment_ids = self._load_segments_from_sdk(split, train_ratio, val_ratio, seed)
+
+        # Load raw text data from SDK (words sequence)
+        print("  Loading words sequence for raw text...")
         try:
             from mmsdk import mmdatasdk
+            raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, self.mosi_data_path)
+            words_seq = raw_data.computational_sequences['words']
+
+            # Also load labels
+            highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, self.mosi_data_path)
+            highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, self.mosi_data_path)
+            labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
         except ImportError:
             raise ImportError(
                 "CMU-MultimodalSDK not installed. Install it:\n"
@@ -193,86 +221,18 @@ class MOSIRawVideoDataset(Dataset):
                 "cd CMU-MultimodalSDK && pip install ."
             )
 
-        print(f"Loading raw MOSI data from {self.mosi_data_path}...")
-        print(f"  Required modalities: {', '.join(self.required_modalities)}")
-
-        # Load raw data (for text transcripts)
-        print("  Loading words sequence...")
-        raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, self.mosi_data_path)
-
-        # Load high-level features (for labels)
-        print("  Loading opinion labels...")
-        highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, self.mosi_data_path)
-        highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, self.mosi_data_path)
-
-        # Extract sequences
-        words_seq = raw_data.computational_sequences['words']
-        labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
-
-        # Get all segment IDs that have both text and labels
-        all_segment_ids = []
-        for seg_id in words_seq.data.keys():
-            if seg_id in labels_seq.data:
-                all_segment_ids.append(seg_id)
-
-        print(f"  Found {len(all_segment_ids)} segments with text and labels")
-
-        # Create train/valid/test splits based on video IDs
-        # This ensures segments from the same video stay in the same split
-        video_ids_to_segments = {}
-        for seg_id in all_segment_ids:
-            video_id = seg_id.split('[')[0]
-            if video_id not in video_ids_to_segments:
-                video_ids_to_segments[video_id] = []
-            video_ids_to_segments[video_id].append(seg_id)
-
-        # Shuffle video IDs for random split
-        video_ids = list(video_ids_to_segments.keys())
-        np.random.seed(seed)
-        np.random.shuffle(video_ids)
-
-        # Split video IDs
-        n_train = int(len(video_ids) * train_ratio)
-        n_val = int(len(video_ids) * val_ratio)
-
-        train_video_ids = video_ids[:n_train]
-        val_video_ids = video_ids[n_train:n_train + n_val]
-        test_video_ids = video_ids[n_train + n_val:]
-
-        # Get segment IDs for this split
-        if split == 'train':
-            split_video_ids = train_video_ids
-        elif split == 'valid':
-            split_video_ids = val_video_ids
-        elif split == 'test':
-            split_video_ids = test_video_ids
-        else:
-            raise ValueError(f"Invalid split: {split}. Must be 'train', 'valid', or 'test'")
-
-        # Collect segment IDs for this split
-        split_segment_ids = []
-        for video_id in split_video_ids:
-            split_segment_ids.extend(video_ids_to_segments[video_id])
-
-        print(f"  {split.capitalize()} split: {len(split_segment_ids)} segments from {len(split_video_ids)} videos")
-
         # Build samples list
         self.samples = []
         skipped_no_audio = 0
         skipped_no_video = 0
+        skipped_no_text = 0
         skipped_no_data = 0
 
         for seg_id in split_segment_ids:
             try:
-                # Parse segment ID (format: either 'video_id[num]' or just 'video_id')
-                if '[' in seg_id:
-                    video_id = seg_id.split('[')[0]
-                    segment_num = int(seg_id.split('[')[1].rstrip(']'))
-                    file_basename = f"{video_id}_seg{segment_num}"
-                else:
-                    # Raw MOSI segments don't have brackets - use segment ID directly
-                    video_id = seg_id[:11] if len(seg_id) >= 11 else seg_id
-                    file_basename = seg_id.replace('[', '_').replace(']', '')
+                # File naming: seg_id.replace('[', '_').replace(']', '')
+                # e.g., "BvYR0L6f2Ig[0]" -> "BvYR0L6f2Ig_0"
+                file_basename = seg_id.replace('[', '_').replace(']', '')
 
                 # Check if audio and video files exist
                 audio_path = os.path.join(self.audio_dir, f"{file_basename}.wav")
@@ -314,27 +274,48 @@ class MOSIRawVideoDataset(Dataset):
                             skipped_no_video += 1
                             continue
 
-                # Extract text transcript
-                words_data = words_seq.data[seg_id]
-                features = words_data['features']
+                # Extract text transcript from SDK
+                # For fine-grained segments (e.g., "BvYR0L6f2Ig[0]"), we need to get
+                # the video-level text and extract the relevant portion
+                video_id = seg_id.split('[')[0] if '[' in seg_id else seg_id
 
-                # Handle HDF5 dataset objects
-                if isinstance(features, h5py.Dataset):
-                    # Read HDF5 dataset as array
-                    features = features[:]
+                text = None
+                label = None
 
-                # Convert to text
-                if isinstance(features, (list, np.ndarray)):
-                    # Decode bytes if needed
-                    if len(features) > 0 and isinstance(features[0], bytes):
-                        text = ' '.join([f.decode('utf-8') if isinstance(f, bytes) else str(f) for f in features.flatten()])
+                # Try to get text from words sequence (video-level)
+                if video_id in words_seq.data:
+                    words_data = words_seq.data[video_id]
+                    features = words_data['features']
+
+                    # Handle HDF5 dataset objects
+                    if isinstance(features, h5py.Dataset):
+                        features = features[:]
+
+                    # Convert to text
+                    if isinstance(features, (list, np.ndarray)):
+                        if len(features) > 0 and isinstance(features[0], bytes):
+                            text = ' '.join([f.decode('utf-8') if isinstance(f, bytes) else str(f) for f in features.flatten()])
+                        else:
+                            text = ' '.join([str(w) for w in features.flatten()])
                     else:
-                        text = ' '.join([str(w) for w in features.flatten()])
-                else:
-                    text = str(features)
+                        text = str(features)
 
-                # Extract label
-                label = float(labels_seq.data[seg_id]['features'][0])
+                # Try to get label (video-level)
+                if video_id in labels_seq.data:
+                    label_data = labels_seq.data[video_id]['features']
+                    if isinstance(label_data, h5py.Dataset):
+                        label_data = label_data[:]
+                    # Average all labels for this video
+                    label = float(np.mean(label_data))
+
+                if text is None:
+                    if 'text' in self.required_modalities:
+                        skipped_no_text += 1
+                        continue
+                    text = ""  # Empty text if not required
+
+                if label is None:
+                    label = 0.0  # Default label
 
                 self.samples.append({
                     'text': text,
@@ -344,13 +325,7 @@ class MOSIRawVideoDataset(Dataset):
                     'segment_id': seg_id
                 })
 
-            except KeyError as e:
-                # Missing data for this segment
-                skipped_no_data += 1
-                continue
-            except (ValueError, AttributeError, IndexError, TypeError, UnicodeDecodeError) as e:
-                # Data format or parsing error
-                print(f"  [WARNING] Failed to parse data for {seg_id}: {e}")
+            except (KeyError, ValueError, AttributeError, IndexError, TypeError, UnicodeDecodeError) as e:
                 skipped_no_data += 1
                 continue
 
@@ -359,8 +334,10 @@ class MOSIRawVideoDataset(Dataset):
             print(f"  [INFO] Skipped {skipped_no_audio} segments (missing required audio)")
         if skipped_no_video > 0:
             print(f"  [INFO] Skipped {skipped_no_video} segments (missing required video)")
+        if skipped_no_text > 0:
+            print(f"  [INFO] Skipped {skipped_no_text} segments (missing required text)")
         if skipped_no_data > 0:
-            print(f"  [INFO] Skipped {skipped_no_data} segments (missing data)")
+            print(f"  [INFO] Skipped {skipped_no_data} segments (data parsing error)")
 
         # Count optional modality availability
         if len(self.samples) > 0:
@@ -377,6 +354,44 @@ class MOSIRawVideoDataset(Dataset):
                 print(f"  Sample audio: shape={self.samples[0]['audio'].shape}, dtype={self.samples[0]['audio'].dtype}")
             if self.samples[0]['video'] is not None:
                 print(f"  Sample video: shape={self.samples[0]['video'].shape}, dtype={self.samples[0]['video'].dtype}")
+
+    def _load_segments_from_sdk(self, split, train_ratio, val_ratio, seed):
+        """
+        Fallback: Load segment IDs from SDK (coarse-grained video-level segments).
+        """
+        from mmsdk import mmdatasdk
+
+        raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, self.mosi_data_path)
+        highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, self.mosi_data_path)
+        highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, self.mosi_data_path)
+
+        words_seq = raw_data.computational_sequences['words']
+        labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
+
+        # Get all segment IDs that have both text and labels
+        all_segment_ids = []
+        for seg_id in words_seq.data.keys():
+            if seg_id in labels_seq.data:
+                all_segment_ids.append(seg_id)
+
+        print(f"  Found {len(all_segment_ids)} coarse-grained segments")
+
+        # Split by video IDs
+        video_ids = list(set([s.split('[')[0] if '[' in s else s for s in all_segment_ids]))
+        np.random.seed(seed)
+        np.random.shuffle(video_ids)
+
+        n_train = int(len(video_ids) * train_ratio)
+        n_val = int(len(video_ids) * val_ratio)
+
+        if split == 'train':
+            split_video_ids = set(video_ids[:n_train])
+        elif split == 'valid':
+            split_video_ids = set(video_ids[n_train:n_train + n_val])
+        else:  # test
+            split_video_ids = set(video_ids[n_train + n_val:])
+
+        return [s for s in all_segment_ids if (s.split('[')[0] if '[' in s else s) in split_video_ids]
 
     def __len__(self) -> int:
         return len(self.samples)
