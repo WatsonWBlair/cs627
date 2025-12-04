@@ -16,15 +16,15 @@ import json
 import pickle
 from typing import List
 
-# Add src to path
-sys.path.insert(0, 'src')
+# Import extraction utilities from local utils directory
+sys.path.insert(0, os.path.dirname(__file__))
 
-from Training.Data_Wrangling.mosi_audio_extractor import (
+from utils.mosi_audio_extractor import (
     parse_segment_id,
     get_segment_timestamps,
     extract_audio_segment
 )
-from Training.Data_Wrangling.mosi_frame_extractor import extract_frame
+from utils.mosi_frame_extractor import extract_frame
 
 # Configuration
 MOSI_DATA_PATH = 'data/cmumosi/mosi/'
@@ -255,7 +255,7 @@ def main():
         print(f"     ls {AUDIO_DIR} | wc -l   # Should be ~{total_audio}")
         print(f"     ls {FRAMES_DIR} | wc -l   # Should be ~{total_frames}")
         print("  2. Test with training:")
-        print("     python src/Training/train_raw_encoders.py --max-samples 10")
+        print("     python src/Training/train_encoders.py --max-samples 10")
     else:
         print("[WARNING] Extraction incomplete. Check errors above.")
 

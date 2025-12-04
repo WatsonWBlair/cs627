@@ -14,9 +14,10 @@ import pickle
 
 # Add src to path
 sys.path.insert(0, 'src')
+sys.path.insert(0, 'scripts/data_wrangling')
 
-from Training.Data_Wrangling.mosi_audio_extractor import extract_audio_segments
-from Training.Data_Wrangling.mosi_frame_extractor import extract_frames
+from utils.mosi_audio_extractor import extract_audio_segments
+from utils.mosi_frame_extractor import extract_frames
 from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from PIL import Image
 import librosa
@@ -85,7 +86,7 @@ def main():
     os.makedirs(audio_dir, exist_ok=True)
 
     # Extract audio for test segments
-    from Training.Data_Wrangling.mosi_audio_extractor import (
+    from utils.mosi_audio_extractor import (
         parse_segment_id,
         get_segment_timestamps,
         extract_audio_segment
@@ -133,7 +134,7 @@ def main():
     frames_dir = 'data/cmumosi/frames'
     os.makedirs(frames_dir, exist_ok=True)
 
-    from Training.Data_Wrangling.mosi_frame_extractor import extract_frame
+    from utils.mosi_frame_extractor import extract_frame
 
     for seg_id in test_segments[:5]:  # Just test first 5
         video_id, segment_num = parse_segment_id(seg_id)
@@ -238,7 +239,7 @@ def main():
     print("  1. Download full train split videos (will take several hours)")
     print("  2. Extract audio + frames for all segments")
     print("  3. Create MOSIRawVideoDataset loader")
-    print("  4. Update train_raw_encoders.py")
+    print("  4. Update train_encoders.py")
     print("  5. Begin training!")
 
 

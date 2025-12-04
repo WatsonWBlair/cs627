@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.insert(0, 'src')
 
-from Training.train_raw_encoders import EncoderConfig
+from Training.train_encoders import EncoderConfig
 from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from Encoders.audio.tone_to_vec import Tone_to_Vec
 

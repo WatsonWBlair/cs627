@@ -43,9 +43,11 @@ chmod +x setup_and_train.sh
 That's it! The script will:
 1. ✓ Install all dependencies (Python, libraries, CUDA tools)
 2. ✓ Download CMU-MultimodalSDK
-3. ✓ Download and preprocess CMU-MOSI dataset (~2GB)
+3. ✓ Download and preprocess CMU-MOSI dataset (~10GB raw videos)
 4. ✓ Train encoders with MoCo contrastive learning
 5. ✓ Save adapter weights and training logs
+
+**⚠️ Note**: This downloads 10GB on your GPU instance. See "Recommended: Preprocess Locally" below for a more cost-effective approach (only transfer 500MB).
 
 ### 4. Monitor Training
 
@@ -59,6 +61,116 @@ Epoch 50/100: Loss: 0.87
 ```
 
 Training logs are saved to `results/encoder_alignment/training_YYYYMMDD_HHMMSS.log`
+
+## Recommended: Preprocess Locally, Transfer to Cloud
+
+**Why?** Downloading 10GB of videos on an expensive GPU instance is wasteful. Instead:
+- Download and extract data on your local machine (free, can run overnight)
+- Transfer only ~500MB of segmented data to cloud (20x less data transfer)
+- Start training immediately on GPU (no wasted GPU hours)
+
+### Step 1: Preprocess on Local Machine
+
+```bash
+# On your local machine
+cd cs627
+
+# Download MOSI metadata
+python -c "
+from src.Training.Data_Wrangling.mosi_dataset import download_mosi
+download_mosi('data/cmumosi/mosi/')
+"
+
+# Download raw videos (~10GB, can run overnight)
+python scripts/data_wrangling/download_all_mosi_videos.py
+
+# Extract segments (~500MB total)
+python scripts/data_wrangling/extract_all_segments.py
+```
+
+### Step 2: Transfer Data to Cloud Instance
+
+```bash
+# From your local machine, transfer only the extracted segments
+rsync -avz --progress \
+  data/cmumosi/ \
+  user@instance-ip:~/cs627/data/cmumosi/
+```
+
+**Transfer size**: Only ~500MB (vs 10GB for raw videos)
+**Transfer time**: ~5-10 minutes on typical broadband (vs 1-2 hours for raw videos)
+
+### Step 3: Train on Cloud
+
+```bash
+# SSH into cloud instance
+ssh user@instance-ip
+
+# Install dependencies only (skip data download)
+cd cs627
+./setup_and_train.sh --skip-data
+
+# Or manually:
+pip install -r requirements.txt
+python3 src/Training/train_encoders.py
+```
+
+**Cost Savings**: Save 1-2 hours of GPU time ($2-6 on most instances)
+
+## Automated Transfer Scripts
+
+For easier cloud management, we provide automated scripts to transfer data and weights:
+
+### Quick Setup
+
+```bash
+# 1. Configure cloud credentials (one time)
+cp .env.example .env
+nano .env  # Fill in CLOUD_USER, CLOUD_HOST, CLOUD_SSH_KEY
+
+# 2. Upload preprocessed data to cloud
+./scripts/cloud/upload_to_cloud.sh
+
+# 3. SSH and train
+ssh $CLOUD_USER@$CLOUD_HOST
+cd ~/cs627
+python src/Training/train_encoders.py
+
+# 4. Download trained weights (from local machine)
+./scripts/cloud/download_from_cloud.sh
+```
+
+### Upload Script (`scripts/cloud/upload_to_cloud.sh`)
+
+Uploads preprocessed data (~500MB) to cloud instance:
+
+```bash
+# Upload data and weights (default)
+./scripts/cloud/upload_to_cloud.sh
+
+# Upload only data (first time training)
+./scripts/cloud/upload_to_cloud.sh --data-only
+
+# Preview transfer without executing
+./scripts/cloud/upload_to_cloud.sh --dry-run
+```
+
+### Download Script (`scripts/cloud/download_from_cloud.sh`)
+
+Downloads trained weights and results from cloud:
+
+```bash
+# Download everything (weights + logs + metrics)
+./scripts/cloud/download_from_cloud.sh
+
+# Download only trained weights
+./scripts/cloud/download_from_cloud.sh --weights-only
+
+# Download only training logs/metrics
+./scripts/cloud/download_from_cloud.sh --results-only
+```
+
+**See [scripts/cloud/README.md](scripts/cloud/README.md) for complete documentation.**
 
 ## Advanced Usage
 
@@ -153,20 +265,28 @@ pip install .
 cd ..
 ```
 
-### 4. Download Dataset
+### 4. Download and Prepare Dataset
 
 ```bash
+# Download MOSI metadata (text transcripts, labels)
 python3 -c "
-from src.Training.Data_Wrangling.mosi_dataset import download_mosi, preprocess_mosi
-download_mosi('data/cmumosi')
-preprocess_mosi('data/cmumosi')
+from src.Training.Data_Wrangling.mosi_dataset import download_mosi
+download_mosi('data/cmumosi/mosi/')
 "
+
+# Download raw videos (~10GB)
+python3 scripts/data_wrangling/download_all_mosi_videos.py
+
+# Extract audio segments and video frames (~500MB total)
+python3 scripts/data_wrangling/extract_all_segments.py
 ```
+
+**Note**: This downloads ~10GB of raw video, then extracts ~500MB of segmented audio/frames for training.
 
 ### 5. Run Training
 
 ```bash
-python3 src/Training/train_encoder_alignment.py
+python3 src/Training/train_encoders.py
 ```
 
 ## Monitoring and Logging
@@ -203,25 +323,34 @@ ls -lh AdapterWeights/
 
 ## Downloading Results
 
-### Download Adapter Weights
+### Automated Download (Recommended)
+
+Use the automated download script:
+
+```bash
+# Download everything (weights + logs + metrics)
+./scripts/cloud/download_from_cloud.sh
+
+# Download only weights
+./scripts/cloud/download_from_cloud.sh --weights-only
+```
+
+See [Automated Transfer Scripts](#automated-transfer-scripts) section above for details.
+
+### Manual Download (Alternative)
 
 **Using SCP:**
 ```bash
 # From your local machine
 scp -r user@instance-ip:~/cs627/AdapterWeights/ ./
+scp -r user@instance-ip:~/cs627/results/ ./
 ```
 
 **Using rsync:**
 ```bash
 # From your local machine
 rsync -avz user@instance-ip:~/cs627/AdapterWeights/ ./AdapterWeights/
-```
-
-### Download Training Logs
-
-```bash
-# From your local machine
-scp user@instance-ip:~/cs627/results/encoder_alignment/*.log ./
+rsync -avz user@instance-ip:~/cs627/results/ ./results/
 ```
 
 ## Cost Optimization
@@ -268,9 +397,11 @@ gcloud compute instances delete instance-name --zone=us-central1-a
 
 ### Slow Data Download
 
-**Issue**: CMU-MOSI download is slow or fails
+**Issue**: CMU-MOSI download is slow or fails on cloud instance
 
-**Solution**: Download dataset manually and place in `data/cmumosi/`
+**Solution**: Use the recommended approach - preprocess locally and transfer segmented data
+- See "Recommended: Preprocess Locally, Transfer to Cloud" section above
+- Only transfers 500MB instead of 10GB (20x faster)
 
 ### CUDA Not Available
 
@@ -307,12 +438,16 @@ Coming soon: Docker container for reproducible deployments.
 
 **Training Time**: ~4-8 hours (depends on GPU and configuration)
 
-**Example Costs**:
+**Example Costs (GPU time only)**:
 - **AWS g4dn.xlarge** (T4): ~$0.50/hour → $2-4 per training run
 - **AWS p3.2xlarge** (V100): ~$3.00/hour → $12-24 per training run
 - **Lambda Labs** (A10): ~$0.60/hour → $2.40-4.80 per training run
 
-**Data Transfer**: Minimal (dataset is ~2GB, results are <1GB)
+**Data Transfer Costs**:
+- **If downloading on cloud**: 10GB download + 1-2 hours extra GPU time = $0.50-$6 extra
+- **If preprocessing locally**: 500MB transfer only = minimal cost
+
+**💡 Cost Optimization**: Preprocess locally to save 1-2 hours of GPU time ($0.50-$6 per run)
 
 ## Next Steps
 

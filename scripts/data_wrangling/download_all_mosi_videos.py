@@ -130,7 +130,7 @@ def main():
     print("Next steps:")
     print("  1. Extract audio segments: python scripts/data_wrangling/extract_all_segments.py")
     print("  2. Extract video frames:   (same script handles both)")
-    print("  3. Train encoders:         python src/Training/train_raw_encoders.py")
+    print("  3. Train encoders:         python src/Training/train_encoders.py")
     print()
 
 

@@ -29,7 +29,7 @@ python scripts/data_wrangling/download_test_videos.py
 python scripts/data_wrangling/extract_test_segments.py
 
 # Train text, audio, and video encoders on CMU-MOSI dataset
-python src/Training/train_raw_encoders.py
+python src/Training/train_encoders.py
 ```
 
 See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
@@ -142,7 +142,7 @@ cs627/
 │   ├── Training/              # Training infrastructure
 │   │   ├── encoder_trainers.py     # MoCo contrastive learning
 │   │   ├── decoder_trainers.py     # Dual-loss training
-│   │   ├── train_raw_encoders.py   # Main training script (raw data)
+│   │   ├── train_encoders.py   # Main training script (raw data)
 │   │   ├── Data_Wrangling/
 │   │   │   └── mosi_dataset.py     # CMU-MOSI dataset loader
 │   │   ├── README.md          # Training documentation

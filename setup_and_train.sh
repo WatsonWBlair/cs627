@@ -357,7 +357,7 @@ EOF
     echo ""
 
     # Start training (with tee to show output and save to log)
-    python3 src/Training/train_raw_encoders.py 2>&1 | tee "$LOG_FILE"
+    python3 src/Training/train_encoders.py 2>&1 | tee "$LOG_FILE"
 
     TRAIN_EXIT_CODE=${PIPESTATUS[0]}
 

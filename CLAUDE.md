@@ -122,7 +122,7 @@ Uses **Cross-Modal Momentum Contrastive Learning** (based on [1]).
 
 **Input Format**: `[(query, positive, negative), ...]`
 
-#### Raw Encoder Training (`src/Training/train_raw_encoders.py`)
+#### Raw Encoder Training (`src/Training/train_encoders.py`)
 Training pipeline for encoders using raw multimodal data from CMU-MOSI:
 
 - **Dataset**: `MOSIRawVideoDataset` with lazy loading
@@ -285,7 +285,7 @@ cs627/
 │   │   │   └── vec_to_visual.py    # Vec_to_Image (EXPERIMENTAL)
 │   │   └── video/                # Video decoders
 │   ├── Training/                 # Training scripts and data loaders
-│   │   ├── train_raw_encoders.py   # Main training script
+│   │   ├── train_encoders.py   # Main training script
 │   │   └── Data_Wrangling/       # Dataset loaders (MOSI, etc.)
 │   ├── Inference/                # Inference modules (chatbot, summarization)
 │   └── utils/                    # Shared utilities (Adapter, etc.)

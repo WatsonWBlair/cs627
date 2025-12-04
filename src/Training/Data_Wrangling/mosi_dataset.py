@@ -1,13 +1,15 @@
 """
 CMU-MOSI Dataset Loader for Cross-Modal Contrastive Learning
 
-This module provides the MOSIRawVideoDataset for loading TRUE raw multimodal data
-from extracted YouTube videos (audio waveforms + video frames).
+This module provides the MOSIRawVideoDataset for loading multimodal data
+from pre-extracted and segmented YouTube videos.
 
 Dataset: CMU Multimodal Opinion Sentiment Intensity (MOSI)
-- 2,199 opinion video segments from YouTube
+- 2,199 opinion video segments from YouTube (3-10 seconds each)
 - Modalities: Text transcripts, Audio waveforms (16kHz), Video frames (RGB)
 - Labels: Sentiment intensity scores
+
+All data is eagerly loaded into RAM during dataset initialization for fast training.
 
 Usage:
     from Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset, download_mosi
@@ -15,7 +17,7 @@ Usage:
     # Download MOSI metadata (first time only)
     download_mosi('data/cmumosi/mosi/')
 
-    # Load raw video dataset
+    # Load dataset (all data loaded into RAM)
     dataset = MOSIRawVideoDataset(
         split='train',
         mosi_data_path='data/cmumosi/mosi/',
@@ -23,9 +25,9 @@ Usage:
         video_dir='data/cmumosi/frames/'
     )
 
-    # Use with DataLoader and lazy loading collate function
+    # Use with DataLoader
     from torch.utils.data import DataLoader
-    from Training.train_raw_encoders import collate_fn_raw_video
+    from Training.train_encoders import collate_fn_raw_video
 
     loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn_raw_video)
 """
@@ -36,6 +38,8 @@ import numpy as np
 from torch.utils.data import Dataset
 from typing import Dict
 import h5py
+import librosa
+from PIL import Image as PILImage
 
 
 def download_mosi(data_path: str = 'data/cmumosi/'):
@@ -97,13 +101,13 @@ class MOSIRawVideoDataset(Dataset):
     """
     PyTorch Dataset for CMU-MOSI TRUE raw multimodal data from extracted videos.
 
-    This dataset loads:
+    This dataset eagerly loads all data into RAM during initialization:
     - Raw text transcripts (strings from MOSI words sequence)
-    - Paths to extracted audio files (.wav at 16kHz for Whisper)
-    - Paths to extracted video frames (.jpg for ViT)
+    - Audio waveforms (16kHz mono numpy arrays from .wav files)
+    - Video frames (RGB numpy arrays from .jpg files)
     - Sentiment labels from Opinion_Labels
 
-    This is the RECOMMENDED approach for training encoders on raw modalities.
+    This is the RECOMMENDED approach for training encoders on segmented data.
 
     Usage:
         # Full multimodal dataset (default - requires all modalities)
@@ -127,10 +131,10 @@ class MOSIRawVideoDataset(Dataset):
         # Returns:
         # {
         #     'text': "I really enjoyed the movie",
-        #     'audio': 'data/cmumosi/audio/BvYR0L6f2Ig.wav' or None,
-        #     'video': 'data/cmumosi/frames/BvYR0L6f2Ig.jpg' or None,
+        #     'audio': numpy.ndarray(shape=(96000,), dtype=float32) or None,
+        #     'video': numpy.ndarray(shape=(480, 640, 3), dtype=uint8) or None,
         #     'label': 2.5,
-        #     'segment_id': 'BvYR0L6f2Ig'
+        #     'segment_id': 'BvYR0L6f2Ig[0]'
         # }
     """
 
@@ -286,11 +290,29 @@ class MOSIRawVideoDataset(Dataset):
                     skipped_no_video += 1
                     continue
 
-                # Set to None if optional modality is missing
-                if not audio_exists:
-                    audio_path = None
-                if not video_exists:
-                    video_path = None
+                # Load audio data eagerly (into RAM)
+                audio_data = None
+                if audio_exists:
+                    try:
+                        waveform, sr = librosa.load(audio_path, sr=16000, mono=True)
+                        audio_data = waveform  # numpy array
+                    except Exception as e:
+                        print(f"  [WARNING] Failed to load audio {file_basename}: {e}")
+                        if 'audio' in self.required_modalities:
+                            skipped_no_audio += 1
+                            continue
+
+                # Load video frame eagerly (into RAM)
+                video_data = None
+                if video_exists:
+                    try:
+                        frame = PILImage.open(video_path).convert('RGB')
+                        video_data = np.array(frame)  # numpy array (H, W, 3)
+                    except Exception as e:
+                        print(f"  [WARNING] Failed to load frame {file_basename}: {e}")
+                        if 'video' in self.required_modalities:
+                            skipped_no_video += 1
+                            continue
 
                 # Extract text transcript
                 words_data = words_seq.data[seg_id]
@@ -316,8 +338,8 @@ class MOSIRawVideoDataset(Dataset):
 
                 self.samples.append({
                     'text': text,
-                    'audio': audio_path,
-                    'video': video_path,
+                    'audio': audio_data,  # numpy array or None
+                    'video': video_data,  # numpy array (H, W, 3) or None
                     'label': label,
                     'segment_id': seg_id
                 })
@@ -349,9 +371,9 @@ class MOSIRawVideoDataset(Dataset):
         if len(self.samples) > 0:
             print(f"  Sample text: '{self.samples[0]['text'][:60]}...'")
             if self.samples[0]['audio'] is not None:
-                print(f"  Sample audio: {os.path.basename(self.samples[0]['audio'])}")
+                print(f"  Sample audio: shape={self.samples[0]['audio'].shape}, dtype={self.samples[0]['audio'].dtype}")
             if self.samples[0]['video'] is not None:
-                print(f"  Sample video: {os.path.basename(self.samples[0]['video'])}")
+                print(f"  Sample video: shape={self.samples[0]['video'].shape}, dtype={self.samples[0]['video'].dtype}")
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -360,14 +382,13 @@ class MOSIRawVideoDataset(Dataset):
         """
         Returns dictionary with raw multimodal data for one segment.
 
-        Audio and video are returned as PATHS (lazy loading).
-        Actual loading happens in the collate_fn.
+        All data is loaded into RAM during initialization (eager loading).
 
         Returns:
             dict with keys:
                 - 'text': Raw text transcript (str)
-                - 'audio': Path to audio file (str)
-                - 'video': Path to video frame (str)
+                - 'audio': Audio waveform (numpy array, shape=(samples,)) or None
+                - 'video': Video frame (numpy array, shape=(H, W, 3)) or None
                 - 'label': Sentiment intensity (float)
                 - 'segment_id': Unique segment identifier (str)
         """

@@ -10,15 +10,15 @@ This script:
 import sys
 import os
 
-# Add src to path
-sys.path.insert(0, 'src')
+# Add utils to path
+sys.path.insert(0, os.path.dirname(__file__))
 
-from Training.Data_Wrangling.mosi_audio_extractor import (
+from utils.mosi_audio_extractor import (
     parse_segment_id,
     get_segment_timestamps,
     extract_audio_segment
 )
-from Training.Data_Wrangling.mosi_frame_extractor import extract_frame
+from utils.mosi_frame_extractor import extract_frame
 
 # Test video IDs
 TEST_VIDEO_IDS = [

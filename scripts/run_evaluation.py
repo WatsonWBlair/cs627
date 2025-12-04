@@ -38,7 +38,7 @@ sys.path.insert(0, str(project_root / 'src'))
 import torch
 from src.Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from src.Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset
-from src.Training.train_raw_encoders import collate_fn_raw_video
+from src.Training.train_encoders import collate_fn_raw_video
 from src.Evaluation import CrossModalEvaluator
 from src.Evaluation.multibench_adapter import MOSISentimentTask
 

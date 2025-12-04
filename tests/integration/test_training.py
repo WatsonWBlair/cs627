@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 # Now modify the training script to use fewer epochs for testing
-from Training import train_raw_encoders as training_module
+from Training import train_encoders as training_module
 
 # Store original values
 ORIGINAL_EPOCHS = training_module.EPOCHS

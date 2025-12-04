@@ -158,7 +158,7 @@ def main():
     print("\nNext steps:")
     print("  1. Download full MOSI video dataset")
     print("  2. Extract audio + frames for all segments")
-    print("  3. Update train_raw_encoders.py with lazy loading collate_fn")
+    print("  3. Update train_encoders.py with lazy loading collate_fn")
     print("  4. Begin encoder swarm training")
 
 

@@ -265,7 +265,7 @@ After training encoders:
 
 ```bash
 # 1. Train encoders
-python src/Training/train_raw_encoders.py
+python src/Training/train_encoders.py
 
 # 2. Evaluate alignment
 python scripts/run_evaluation.py --split test

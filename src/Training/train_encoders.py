@@ -7,7 +7,7 @@ Supports multiple specialized encoders per modality (e.g., tone detector, sarcas
 Based on MoCo (Momentum Contrast) approach with multi-positive InfoNCE loss.
 
 Usage:
-    python src/Training/train_raw_encoders.py
+    python src/Training/train_encoders.py
 
 Architecture:
     - Encoder Swarm: Multiple encoders per modality, each focusing on specific features
@@ -694,9 +694,10 @@ def collate_fn(batch: List[Dict]) -> Dict:
 
 def collate_fn_raw_video(batch: List[Dict]) -> Dict:
     """
-    Lazy loading collate function for raw video/audio data.
+    Collate function for eagerly-loaded raw video/audio data.
 
-    Loads actual audio waveforms and video frames just-in-time to avoid RAM overflow.
+    Data is already loaded into RAM by the dataset. This function just
+    extracts and converts to the format expected by encoders.
 
     Args:
         batch: List of samples from MOSIRawVideoDataset
@@ -705,31 +706,29 @@ def collate_fn_raw_video(batch: List[Dict]) -> Dict:
         Dictionary with batched data:
             - 'text': List of raw text strings
             - 'audio': List of audio waveforms (numpy arrays, variable length)
-            - 'video': List of PIL Images
+            - 'video': List of PIL Images (converted from numpy arrays)
     """
     # Extract text (raw strings)
     texts = [sample['text'] for sample in batch]
 
-    # Lazy load audio waveforms (16kHz mono for Whisper)
+    # Extract audio waveforms (already loaded as numpy arrays)
     audio_waveforms = []
     for sample in batch:
-        try:
-            waveform, sr = librosa.load(sample['audio'], sr=16000, mono=True)
-            audio_waveforms.append(waveform)
-        except Exception as e:
-            print(f"[WARNING] Failed to load audio {sample['audio']}: {e}")
-            # Use zero waveform as fallback
+        if sample['audio'] is not None:
+            audio_waveforms.append(sample['audio'])
+        else:
+            # Use zero waveform as fallback if modality is missing
             audio_waveforms.append(np.zeros(16000, dtype=np.float32))  # 1 second of silence
 
-    # Lazy load video frames (RGB PIL Images for ViT)
+    # Convert video frames from numpy to PIL Images (for ViT encoder)
     video_frames = []
     for sample in batch:
-        try:
-            frame = PILImage.open(sample['video']).convert('RGB')
+        if sample['video'] is not None:
+            # Convert numpy array (H, W, 3) to PIL Image
+            frame = PILImage.fromarray(sample['video'])
             video_frames.append(frame)
-        except Exception as e:
-            print(f"[WARNING] Failed to load frame {sample['video']}: {e}")
-            # Use blank frame as fallback
+        else:
+            # Use blank frame as fallback if modality is missing
             video_frames.append(PILImage.new('RGB', (224, 224), color='black'))
 
     return {
