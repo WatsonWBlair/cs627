@@ -14,6 +14,7 @@ class Adapter(nn.Module):
         output_length: Output dimension (default: 1024)
         hidden_size: Hidden layer dimension (default: 200)
         hidden_layers: Number of hidden layers (default: 2)
+        weights_dir: Directory to save/load weights (default: "OptimalWeights")
     """
 
     config_class: str = 'NLP'
@@ -24,11 +25,12 @@ class Adapter(nn.Module):
         input_length: int = 1024,
         output_length: int = 1024,
         hidden_size: int = 200,
-        hidden_layers: int = 2
+        hidden_layers: int = 2,
+        weights_dir: str = "OptimalWeights"
     ) -> None:
         super().__init__()
         self.prefix = prefix
-        self.weights_path = Path(f"AdapterWeights/{prefix}_weights.pth")
+        self.weights_path = Path(f"{weights_dir}/{prefix}_weights.pth")
 
         # Build MLP layers
         model_layers: list[nn.Module] = [

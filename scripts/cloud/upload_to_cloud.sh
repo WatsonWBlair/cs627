@@ -4,7 +4,7 @@
 # ==============================================================================
 # This script uploads:
 #   - data/cmumosi/ (preprocessed audio segments and video frames ~500MB)
-#   - AdapterWeights/ (optional - if resuming training)
+#   - OptimalWeights/ (optional - if resuming training)
 #
 # Usage:
 #   ./scripts/cloud/upload_to_cloud.sh [OPTIONS]
@@ -62,7 +62,7 @@ fi
 # Default values
 CLOUD_PROJECT_DIR="${CLOUD_PROJECT_DIR:-~/cs627}"
 MOSI_DATA_PATH="${MOSI_DATA_PATH:-data/cmumosi}"
-ADAPTER_WEIGHTS_DIR="${ADAPTER_WEIGHTS_DIR:-AdapterWeights}"
+OPTIMAL_WEIGHTS_DIR="${OPTIMAL_WEIGHTS_DIR:-OptimalWeights}"
 CLOUD_SSH_KEY="${CLOUD_SSH_KEY}"
 CLOUD_PORT="${CLOUD_PORT:-22}"
 
@@ -154,8 +154,8 @@ if [ "$UPLOAD_DATA" = true ]; then
 fi
 
 if [ "$UPLOAD_WEIGHTS" = true ]; then
-    if [ ! -d "$PROJECT_ROOT/$ADAPTER_WEIGHTS_DIR" ]; then
-        echo -e "${YELLOW}⚠️  Warning: AdapterWeights directory not found${NC}"
+    if [ ! -d "$PROJECT_ROOT/$OPTIMAL_WEIGHTS_DIR" ]; then
+        echo -e "${YELLOW}⚠️  Warning: OptimalWeights directory not found${NC}"
         echo -e "${YELLOW}Skipping weights upload (this is normal for new training runs)${NC}"
         UPLOAD_WEIGHTS=false
         echo ""
@@ -184,7 +184,7 @@ if [ -z "$DRY_RUN" ]; then
     echo -e "${BLUE}[2/3] Creating remote directories...${NC}"
     ssh $SSH_OPTS "$CLOUD_CONN" "mkdir -p $CLOUD_PROJECT_DIR/$MOSI_DATA_PATH"
     if [ "$UPLOAD_WEIGHTS" = true ]; then
-        ssh $SSH_OPTS "$CLOUD_CONN" "mkdir -p $CLOUD_PROJECT_DIR/$ADAPTER_WEIGHTS_DIR"
+        ssh $SSH_OPTS "$CLOUD_CONN" "mkdir -p $CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR"
     fi
     echo -e "${GREEN}✓ Remote directories created${NC}"
     echo ""
@@ -224,8 +224,8 @@ if [ "$UPLOAD_WEIGHTS" = true ]; then
     echo -e "${BLUE}[Bonus] Uploading adapter weights...${NC}"
 
     eval rsync $RSYNC_OPTS \
-        "$PROJECT_ROOT/$ADAPTER_WEIGHTS_DIR/" \
-        "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$ADAPTER_WEIGHTS_DIR/"
+        "$PROJECT_ROOT/$OPTIMAL_WEIGHTS_DIR/" \
+        "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR/"
 
     if [ -z "$DRY_RUN" ]; then
         echo -e "${GREEN}✓ Adapter weights uploaded${NC}"
@@ -249,7 +249,7 @@ if [ -z "$DRY_RUN" ]; then
     fi
 
     if [ "$UPLOAD_WEIGHTS" = true ]; then
-        echo -e "  🎯 Adapter weights: ${GREEN}$ADAPTER_WEIGHTS_DIR/${NC}"
+        echo -e "  🎯 Adapter weights: ${GREEN}$OPTIMAL_WEIGHTS_DIR/${NC}"
     fi
 
     echo ""

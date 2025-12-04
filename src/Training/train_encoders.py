@@ -910,6 +910,42 @@ def main():
     print("Saving final adapter weights...")
     trainer.save_adapters()
 
+    # Save training configuration
+    print("Saving training configuration...")
+    training_config = {
+        "hyperparameters": {
+            "batch_size": BATCH_SIZE,
+            "learning_rate": LEARNING_RATE,
+            "epochs": EPOCHS,
+            "momentum": MOMENTUM,
+            "queue_size": QUEUE_SIZE,
+            "temperature": TEMPERATURE,
+            "semantic_dim": SEMANTIC_DIM,
+        },
+        "adapter_architecture": {
+            "hidden_size": 200,  # From Adapter defaults
+            "hidden_layers": 2,
+            "input_length": 1024,
+            "output_length": 1024,
+        },
+        "encoders": [
+            {
+                "name": config.name,
+                "data_key": config.data_key,
+                "loss_weight": config.loss_weight
+            }
+            for config in encoder_configs
+        ],
+        "device": DEVICE,
+        "training_date": datetime.now().isoformat(),
+    }
+
+    config_path = "OptimalWeights/training_config.json"
+    os.makedirs("OptimalWeights", exist_ok=True)
+    with open(config_path, 'w') as f:
+        json.dump(training_config, f, indent=2)
+    print(f"Training configuration saved to: {config_path}")
+
     # Generate reports
     print("\n[6/6] Generating training reports...")
     reporter.save_metrics()

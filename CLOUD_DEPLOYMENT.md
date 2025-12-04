@@ -318,7 +318,7 @@ tail -n 100 results/encoder_alignment/training_*.log
 ls -lh results/encoder_alignment/checkpoint-*/
 
 # List adapter weights
-ls -lh AdapterWeights/
+ls -lh OptimalWeights/
 ```
 
 ## Downloading Results
@@ -342,14 +342,14 @@ See [Automated Transfer Scripts](#automated-transfer-scripts) section above for 
 **Using SCP:**
 ```bash
 # From your local machine
-scp -r user@instance-ip:~/cs627/AdapterWeights/ ./
+scp -r user@instance-ip:~/cs627/OptimalWeights/ ./
 scp -r user@instance-ip:~/cs627/results/ ./
 ```
 
 **Using rsync:**
 ```bash
 # From your local machine
-rsync -avz user@instance-ip:~/cs627/AdapterWeights/ ./AdapterWeights/
+rsync -avz user@instance-ip:~/cs627/OptimalWeights/ ./OptimalWeights/
 rsync -avz user@instance-ip:~/cs627/results/ ./results/
 ```
 
@@ -453,7 +453,7 @@ Coming soon: Docker container for reproducible deployments.
 
 After training completes:
 
-1. **Download adapter weights** from `AdapterWeights/`
+1. **Download adapter weights** from `OptimalWeights/`
 2. **Review training logs** in `results/encoder_alignment/`
 3. **Evaluate cross-modal retrieval** metrics
 4. **Use trained encoders** for downstream tasks

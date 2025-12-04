@@ -26,7 +26,7 @@ That's it! The script will:
 3. ✓ Initialize text, audio, video encoders
 4. ✓ Train adapters using MoCo contrastive learning
 5. ✓ Evaluate cross-modal retrieval performance
-6. ✓ Save adapter weights to `AdapterWeights/`
+6. ✓ Save adapter weights to `OptimalWeights/`
 
 ## Step 2: Monitor Training
 
@@ -110,7 +110,7 @@ QUEUE_SIZE = 16384   # More negatives
 After training:
 
 ```
-AdapterWeights/
+OptimalWeights/
 ├── facebook_bart-base_text_enc_weights.pth
 ├── openai_whisper-small_audio_enc_weights.pth
 └── nlpconnect_vit-gpt2-image-captioning_image_enc_weights.pth

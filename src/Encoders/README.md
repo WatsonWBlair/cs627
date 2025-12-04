@@ -89,7 +89,7 @@ trainer.train()
 
 4. Save adapter weights:
 ```python
-your_encoder.adapter.save()  # Saves to AdapterWeights/{prefix}_weights.pth
+your_encoder.adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
 ```
 
 ### Step 4: Test Cross-Modal Alignment

@@ -168,7 +168,7 @@ cs627/
 ├── litrature/                 # Research papers and notes
 │   ├── Paper.txt              # Companion research paper
 │   └── previous_work/         # Related work and references
-├── AdapterWeights/            # Trained adapter weights
+├── OptimalWeights/            # Trained adapter weights
 ├── data/                      # Dataset storage (not in git)
 ├── CLAUDE.md                  # Project guide for Claude Code
 ├── requirements.txt           # Python dependencies

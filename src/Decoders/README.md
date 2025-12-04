@@ -132,7 +132,7 @@ Use the **dual-loss trainer** in `src/Training/decoder_trainers.py`:
 
 4. **Save Adapter Weights**:
    ```python
-   your_decoder.adapter.save()  # Saves to AdapterWeights/{prefix}_weights.pth
+   your_decoder.adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
    ```
 
 ### Step 4: Validate Backtranslation

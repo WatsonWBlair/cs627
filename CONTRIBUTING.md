@@ -135,7 +135,7 @@ output = decoder(vector)
 **Adapters should**:
 - Use prefix naming: `{model_name}_{enc/dec}`
 - Default dimensions: input/output 1024, hidden 200, layers 2
-- Be saved to `AdapterWeights/{prefix}_weights.pth`
+- Be saved to `OptimalWeights/{prefix}_weights.pth`
 
 ### Code Style
 

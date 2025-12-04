@@ -3,7 +3,7 @@
 # Download trained model weights and results from cloud instance
 # ==============================================================================
 # This script downloads:
-#   - AdapterWeights/ (trained adapter weights)
+#   - OptimalWeights/ (trained adapter weights)
 #   - results/ (training logs, evaluation metrics)
 #   - training_reports/ (loss curves, checkpoints)
 #
@@ -55,7 +55,7 @@ fi
 
 # Default values
 CLOUD_PROJECT_DIR="${CLOUD_PROJECT_DIR:-~/cs627}"
-ADAPTER_WEIGHTS_DIR="${ADAPTER_WEIGHTS_DIR:-AdapterWeights}"
+OPTIMAL_WEIGHTS_DIR="${OPTIMAL_WEIGHTS_DIR:-OptimalWeights}"
 RESULTS_DIR="${RESULTS_DIR:-results}"
 TRAINING_REPORTS_DIR="${TRAINING_REPORTS_DIR:-training_reports}"
 CLOUD_SSH_KEY="${CLOUD_SSH_KEY}"
@@ -113,6 +113,20 @@ fi
 CLOUD_CONN="${CLOUD_USER}@${CLOUD_HOST}"
 
 # ==============================================================================
+# Create instance-specific download directory
+# ==============================================================================
+
+# Generate unique directory name with timestamp and hostname
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+HOSTNAME_SHORT=$(echo "$CLOUD_HOST" | cut -d'.' -f1)
+DOWNLOAD_DIR="$PROJECT_ROOT/CandidateWeights/${HOSTNAME_SHORT}_${TIMESTAMP}"
+
+# Create directory structure
+mkdir -p "$DOWNLOAD_DIR/OptimalWeights"
+mkdir -p "$DOWNLOAD_DIR/results"
+mkdir -p "$DOWNLOAD_DIR/training_reports"
+
+# ==============================================================================
 # Print configuration
 # ==============================================================================
 
@@ -122,7 +136,7 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 echo -e "${YELLOW}Cloud Instance:${NC} $CLOUD_CONN"
 echo -e "${YELLOW}Remote Directory:${NC} $CLOUD_PROJECT_DIR"
-echo -e "${YELLOW}Local Directory:${NC} $PROJECT_ROOT"
+echo -e "${YELLOW}Download To:${NC} $DOWNLOAD_DIR"
 echo ""
 
 if [ -n "$DRY_RUN" ]; then
@@ -145,69 +159,67 @@ fi
 echo ""
 
 # ==============================================================================
-# Download adapter weights
+# Download adapter weights (ALWAYS)
 # ==============================================================================
 
-if [ "$DOWNLOAD_WEIGHTS" = true ]; then
-    echo -e "${BLUE}[2/3] Downloading adapter weights...${NC}"
+echo -e "${BLUE}[2/4] Downloading trained adapter weights...${NC}"
 
-    # Check if AdapterWeights directory exists on remote
-    if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$ADAPTER_WEIGHTS_DIR' ]"; then
-        mkdir -p "$PROJECT_ROOT/$ADAPTER_WEIGHTS_DIR"
+# Check if OptimalWeights directory exists on remote
+if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR' ]"; then
+    eval rsync $RSYNC_OPTS \
+        "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR/" \
+        "$DOWNLOAD_DIR/OptimalWeights/"
 
-        eval rsync $RSYNC_OPTS \
-            "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$ADAPTER_WEIGHTS_DIR/" \
-            "$PROJECT_ROOT/$ADAPTER_WEIGHTS_DIR/"
-
-        if [ -z "$DRY_RUN" ]; then
-            echo -e "${GREEN}✓ Adapter weights downloaded${NC}"
-        fi
-    else
-        echo -e "${YELLOW}⚠️  No AdapterWeights directory found on remote instance${NC}"
+    if [ -z "$DRY_RUN" ]; then
+        # Count downloaded weights
+        WEIGHT_COUNT=$(find "$DOWNLOAD_DIR/OptimalWeights" -name "*.pth" 2>/dev/null | wc -l)
+        echo -e "${GREEN}✓ Downloaded $WEIGHT_COUNT adapter weight files${NC}"
     fi
-    echo ""
 else
-    echo -e "${BLUE}[2/3] Skipping adapter weights (--results-only specified)${NC}"
-    echo ""
+    echo -e "${YELLOW}⚠️  No OptimalWeights directory found on remote instance${NC}"
+    echo -e "${YELLOW}   Training may not have completed or saved weights${NC}"
 fi
+echo ""
 
 # ==============================================================================
 # Download results and logs
 # ==============================================================================
 
 if [ "$DOWNLOAD_RESULTS" = true ]; then
-    echo -e "${BLUE}[3/3] Downloading training results and logs...${NC}"
+    echo -e "${BLUE}[3/4] Downloading training results...${NC}"
 
     # Download results directory
     if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$RESULTS_DIR' ]"; then
-        mkdir -p "$PROJECT_ROOT/$RESULTS_DIR"
-
         eval rsync $RSYNC_OPTS \
             "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$RESULTS_DIR/" \
-            "$PROJECT_ROOT/$RESULTS_DIR/"
+            "$DOWNLOAD_DIR/results/"
 
         if [ -z "$DRY_RUN" ]; then
             echo -e "${GREEN}✓ Results downloaded${NC}"
         fi
     else
-        echo -e "${YELLOW}⚠️  No results directory found on remote instance${NC}"
+        echo -e "${YELLOW}⚠️  No results directory found${NC}"
     fi
+    echo ""
+
+    echo -e "${BLUE}[4/4] Downloading training reports...${NC}"
 
     # Download training_reports directory (if it exists)
     if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$TRAINING_REPORTS_DIR' ]"; then
-        mkdir -p "$PROJECT_ROOT/$TRAINING_REPORTS_DIR"
-
         eval rsync $RSYNC_OPTS \
             "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$TRAINING_REPORTS_DIR/" \
-            "$PROJECT_ROOT/$TRAINING_REPORTS_DIR/"
+            "$DOWNLOAD_DIR/training_reports/"
 
         if [ -z "$DRY_RUN" ]; then
             echo -e "${GREEN}✓ Training reports downloaded${NC}"
         fi
+    else
+        echo -e "${YELLOW}⚠️  No training_reports directory found${NC}"
     fi
     echo ""
 else
-    echo -e "${BLUE}[3/3] Skipping results (--weights-only specified)${NC}"
+    echo -e "${BLUE}[3/4] Skipping results (--weights-only specified)${NC}"
+    echo -e "${BLUE}[4/4] Skipping training reports (--weights-only specified)${NC}"
     echo ""
 fi
 
@@ -220,22 +232,49 @@ if [ -z "$DRY_RUN" ]; then
     echo -e "${GREEN}║                      Download Complete!                                ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${YELLOW}Downloaded artifacts:${NC}"
-
-    if [ "$DOWNLOAD_WEIGHTS" = true ]; then
-        echo -e "  📦 Adapter weights: ${GREEN}$ADAPTER_WEIGHTS_DIR/${NC}"
-    fi
+    echo -e "${YELLOW}Downloaded to instance-specific directory:${NC}"
+    echo -e "  ${GREEN}$DOWNLOAD_DIR/${NC}"
+    echo ""
+    echo -e "${YELLOW}Contents:${NC}"
+    echo -e "  📦 Adapter weights: ${GREEN}$DOWNLOAD_DIR/OptimalWeights/${NC}"
 
     if [ "$DOWNLOAD_RESULTS" = true ]; then
-        echo -e "  📊 Results: ${GREEN}$RESULTS_DIR/${NC}"
-        echo -e "  📈 Training reports: ${GREEN}$TRAINING_REPORTS_DIR/${NC}"
+        echo -e "  📊 Results: ${GREEN}$DOWNLOAD_DIR/results/${NC}"
+        echo -e "  📈 Training reports: ${GREEN}$DOWNLOAD_DIR/training_reports/${NC}"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Quick Stats:${NC}"
+    if [ -d "$DOWNLOAD_DIR/OptimalWeights" ]; then
+        WEIGHT_FILES=$(find "$DOWNLOAD_DIR/OptimalWeights" -name "*.pth" 2>/dev/null | wc -l)
+        echo -e "  Adapter weights: ${GREEN}$WEIGHT_FILES files${NC}"
+    fi
+    if [ -f "$DOWNLOAD_DIR/training_reports/training_metrics.json" ]; then
+        echo -e "  Training metrics: ${GREEN}Available${NC}"
+    fi
+    if [ -f "$DOWNLOAD_DIR/training_reports/loss_curves.png" ]; then
+        echo -e "  Loss curves: ${GREEN}Available${NC}"
     fi
 
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "  1. Use trained encoders with: ${BLUE}from Encoders import Text_to_Vec, Audio_to_Vec${NC}"
-    echo -e "  2. Review training logs in: ${BLUE}$RESULTS_DIR/${NC}"
-    echo -e "  3. Run evaluation: ${BLUE}python scripts/run_evaluation.py${NC}"
+    echo ""
+    echo -e "${BLUE}1. Review training metrics:${NC}"
+    echo -e "   cat $DOWNLOAD_DIR/training_reports/training_metrics.json"
+    echo ""
+    echo -e "${BLUE}2. View loss curves:${NC}"
+    echo -e "   open $DOWNLOAD_DIR/training_reports/loss_curves.png"
+    echo ""
+    echo -e "${BLUE}3. Promote best weights to production (if satisfied):${NC}"
+    echo -e "   cp $DOWNLOAD_DIR/OptimalWeights/* OptimalWeights/"
+    echo ""
+    echo -e "${BLUE}4. Or compare with existing weights:${NC}"
+    echo -e "   python scripts/cloud/compare_weights.py $DOWNLOAD_DIR/OptimalWeights/ OptimalWeights/"
+    echo ""
+    echo -e "${BLUE}5. Run evaluation on cloud-trained weights:${NC}"
+    echo -e "   python scripts/run_evaluation.py --weights-dir $DOWNLOAD_DIR/OptimalWeights/"
+    echo ""
+    echo -e "${YELLOW}All cloud-trained weights are saved separately and won't overwrite your local weights.${NC}"
 else
     echo -e "${YELLOW}Dry run complete. No files were transferred.${NC}"
     echo -e "${YELLOW}Run without --dry-run to actually download files.${NC}"

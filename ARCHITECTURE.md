@@ -92,7 +92,7 @@ adapter = Adapter(prefix="model_enc", input_length=768, output_length=1024)
 # For decoder: semantic space → modality
 adapter = Adapter(prefix="model_dec", input_length=1024, output_length=768)
 
-adapter.save()  # Saves to AdapterWeights/{prefix}_weights.pth
+adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
 ```
 
 **Parameters**:
@@ -215,7 +215,7 @@ cs627/
 │   │   └── encoder_trainers.py     # MoCo implementation
 │   └── utils/
 │       └── Adapter.py
-├── AdapterWeights/                 # Saved weights ({prefix}_weights.pth)
+├── OptimalWeights/                 # Saved weights ({prefix}_weights.pth)
 ├── tools/                          # Generator scripts
 │   ├── create_encoder.py
 │   ├── create_decoder.py

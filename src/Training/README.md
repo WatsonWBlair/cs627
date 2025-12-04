@@ -30,7 +30,7 @@ This will:
 - Initialize text, audio, and video encoders
 - Train adapters using momentum contrastive learning
 - Evaluate cross-modal retrieval performance
-- Save trained adapter weights to `AdapterWeights/`
+- Save trained adapter weights to `OptimalWeights/`
 
 ## Architecture
 
@@ -395,9 +395,9 @@ After successful encoder alignment:
 ## Output
 
 **Trained Adapter Weights:**
-- `AdapterWeights/facebook_bart-base_text_enc_weights.pth`
-- `AdapterWeights/openai_whisper-small_audio_enc_weights.pth`
-- `AdapterWeights/nlpconnect_vit-gpt2-image-captioning_image_enc_weights.pth`
+- `OptimalWeights/facebook_bart-base_text_enc_weights.pth`
+- `OptimalWeights/openai_whisper-small_audio_enc_weights.pth`
+- `OptimalWeights/nlpconnect_vit-gpt2-image-captioning_image_enc_weights.pth`
 
 **Training Logs:**
 - `results/encoder_alignment/`

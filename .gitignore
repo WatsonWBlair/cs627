@@ -73,6 +73,7 @@ ipython_config.py
 
 # Environments
 .env
+.env.cloud
 .envrc
 .venv
 env/
@@ -221,8 +222,11 @@ src/Training/Data_Wrangling/archive.zip
 # Project-Specific: CS627 Semantic Vector Space
 # ==============================================================================
 
-# Adapter weights directory (models should be trained locally)
-AdapterWeights/
+# Optimal weights directory (best performing models)
+OptimalWeights/
+
+# Candidate weights (cloud-trained weights awaiting evaluation)
+CandidateWeights/
 
 # Chatbot data and corpora
 /src/Chatbot/data/save/

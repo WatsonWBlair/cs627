@@ -104,8 +104,8 @@ Neural network bridge between pretrained models and shared semantic space.
 ```python
 adapter = Adapter(prefix="model_name", input_length=1024,
                  output_length=1024, hidden_size=200, hidden_layers=2)
-adapter.save()  # Saves to AdapterWeights/{prefix}_weights.pth
-adapter.load()  # Loads from AdapterWeights/{prefix}_weights.pth
+adapter.save()  # Saves to OptimalWeights/{prefix}_weights.pth
+adapter.load()  # Loads from OptimalWeights/{prefix}_weights.pth
 ```
 
 ### Training Architecture
@@ -200,9 +200,9 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 ```
 
 ### Adapter Weights Management
-Adapters use prefix-based naming in `AdapterWeights/`:
+Adapters use prefix-based naming in `OptimalWeights/`:
 ```python
-self.weights_path = f"AdapterWeights/{prefix}_weights.pth"
+self.weights_path = f"OptimalWeights/{prefix}_weights.pth"
 ```
 
 ## Evaluation Metrics
@@ -297,7 +297,7 @@ cs627/
 │   └── data_wrangling/           # Data extraction and preprocessing
 ├── .github/workflows/            # CI/CD pipelines
 │   └── smoke-tests.yml           # Automated tests for PRs
-├── AdapterWeights/               # Trained adapter weights
+├── OptimalWeights/               # Trained adapter weights
 └── data/                         # Dataset storage
 ```
 

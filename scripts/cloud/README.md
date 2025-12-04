@@ -59,7 +59,7 @@ python src/Training/train_encoders.py
 ```
 
 This downloads:
-- Trained adapter weights (`AdapterWeights/`)
+- Trained adapter weights (`OptimalWeights/`)
 - Training logs and metrics (`results/`)
 - Loss curves and checkpoints (`training_reports/`)
 
@@ -98,11 +98,13 @@ Upload preprocessed data and optional adapter weights to cloud instance.
 
 **What gets uploaded:**
 - `data/cmumosi/` - Preprocessed audio segments and video frames (~500MB)
-- `AdapterWeights/` - Trained adapter weights (optional, for resuming training)
+- `OptimalWeights/` - Trained adapter weights (optional, for resuming training)
 
 ### download_from_cloud.sh
 
-Download trained models, results, and logs from cloud instance.
+Download trained models, results, and logs from cloud instance to **instance-specific directory**.
+
+**IMPORTANT**: Weights are downloaded to `CandidateWeights/{hostname}_{timestamp}/` to avoid overwriting your local development weights.
 
 **Usage:**
 ```bash
@@ -117,7 +119,7 @@ Download trained models, results, and logs from cloud instance.
 
 **Examples:**
 ```bash
-# Download everything (default)
+# Download everything (weights + logs + metrics)
 ./scripts/cloud/download_from_cloud.sh
 
 # Download only trained weights
@@ -130,10 +132,39 @@ Download trained models, results, and logs from cloud instance.
 ./scripts/cloud/download_from_cloud.sh --dry-run
 ```
 
-**What gets downloaded:**
-- `AdapterWeights/` - Trained adapter weights (.pth files)
-- `results/` - Training logs, evaluation metrics, checkpoints
-- `training_reports/` - Loss curves, performance metrics
+**Download Structure:**
+```
+CandidateWeights/
+└── ec2-3-80-123-45_20250104_143022/     # Instance-specific directory
+    ├── OptimalWeights/                  # Trained adapter weights (.pth files)
+    │   ├── text_base_weights.pth
+    │   ├── audio_waveform_weights.pth
+    │   ├── audio_tone_weights.pth
+    │   └── image_base_weights.pth
+    ├── results/                         # Training logs, eval metrics
+    └── training_reports/                # Loss curves, timing analysis
+        ├── training_metrics.json
+        ├── loss_curves.png
+        └── epoch_timing.png
+```
+
+**Promoting Weights to Production:**
+
+After reviewing training metrics, you can promote the best weights:
+
+```bash
+# Option 1: Copy all weights to production
+cp CandidateWeights/ec2-xxx_20250104_143022/OptimalWeights/* OptimalWeights/
+
+# Option 2: Compare first, then selectively copy
+python scripts/cloud/compare_weights.py \
+  CandidateWeights/ec2-xxx_20250104_143022/OptimalWeights/ \
+  OptimalWeights/
+
+# Option 3: Test cloud weights before promoting
+python scripts/run_evaluation.py \
+  --weights-dir CandidateWeights/ec2-xxx_20250104_143022/OptimalWeights/
+```
 
 ## Cost Optimization Tips
 
@@ -206,7 +237,7 @@ Preview transfers before executing to avoid mistakes:
 
 ### Directory Not Found
 
-**Error:** `No AdapterWeights directory found on remote`
+**Error:** `No OptimalWeights directory found on remote`
 
 **Solution:** This is normal if:
 - First time training (no weights yet)
