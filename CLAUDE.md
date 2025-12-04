@@ -188,15 +188,62 @@ Both losses measure reconstruction quality from different perspectives.
 
 ## Development Workflow
 
-### Training Notebooks
+### Local Development
 - `src/encoder_training.ipynb` - Encoder fine-tuning experiments
 - `src/encoder_alignment.ipynb` - Encoder alignment to semantic space using contrastive learning
 - `src/sonar_sample.ipynb` - SONAR usage examples
+
+### Remote Training (Recommended)
+
+For production training, use AWS EC2 with GPU instances:
+
+#### Optimal Configuration
+- **Instance**: `g5.4xlarge` (NVIDIA A10G, 24GB VRAM)
+- **AMI**: AWS Deep Learning OSS Nvidia Driver AMI (PyTorch 2.5)
+  - AMI ID (us-east-1): `ami-04f3e35dc85e9423b`
+  - Pre-installed: PyTorch, CUDA 12.4, all ML dependencies
+- **Storage**: 200GB gp3 SSD
+- **Training Time**: 3-4 hours for full encoder suite
+
+#### Deployment Process
+```bash
+# 1. Launch optimized instance
+aws ec2 run-instances \
+  --image-id ami-04f3e35dc85e9423b \
+  --instance-type g5.4xlarge \
+  --key-name your-key \
+  --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}"
+
+# 2. Deploy code and data
+./scripts/setup_remote_instance.sh <instance-ip>
+
+# 3. SSH and start training
+ssh ubuntu@<instance-ip>
+cd ~/cs627
+python src/Training/train_encoders.py  # Uses GPU automatically
+```
+
+#### Why Deep Learning AMI?
+- **No driver installation** - NVIDIA drivers pre-configured
+- **No Python setup** - All packages pre-installed
+- **No reboot required** - GPU works immediately
+- **Optimized CUDA/cuDNN** - Best performance out of the box
+
+#### Alternative: Standard Ubuntu AMI
+If using standard Ubuntu 24.04 AMI, additional steps required:
+1. Install NVIDIA drivers (requires reboot)
+2. Install python3-venv package
+3. Install all Python dependencies
+4. Handle dependency conflicts
+
+**Not recommended** - Use Deep Learning AMI instead.
 
 ### Device Configuration
 All models automatically detect GPU availability:
 ```python
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# On g5.4xlarge: DEVICE = "cuda" (A10G GPU detected)
+# On CPU instance: DEVICE = "cpu"
 ```
 
 ### Adapter Weights Management
@@ -204,6 +251,8 @@ Adapters use prefix-based naming in `OptimalWeights/`:
 ```python
 self.weights_path = f"OptimalWeights/{prefix}_weights.pth"
 ```
+
+Weights are automatically synced by setup script.
 
 ## Evaluation Metrics
 

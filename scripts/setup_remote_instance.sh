@@ -1,7 +1,26 @@
 #!/bin/bash
 
-# Cloud Instance Setup Script
-# This script sets up a remote instance with the necessary directories and data for training
+# Cloud Instance Setup Script for CS627 Semantic-Vector Space Training
+# 
+# RECOMMENDED INSTANCE CONFIGURATION:
+# - Instance Type: g5.4xlarge (NVIDIA A10G GPU, 24GB VRAM)
+# - AMI: AWS Deep Learning OSS Nvidia Driver AMI (PyTorch 2.5)
+#   - AMI ID (us-east-1): ami-04f3e35dc85e9423b
+#   - AMI ID (us-west-2): ami-0c6f4e57e7d5e5e3b
+# - Storage: 200GB gp3 SSD
+# 
+# LAUNCH COMMAND:
+# aws ec2 run-instances \
+#   --image-id ami-04f3e35dc85e9423b \
+#   --instance-type g5.4xlarge \
+#   --key-name your-key-name \
+#   --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}"
+#
+# USAGE:
+# ./scripts/setup_remote_instance.sh <instance-ip>
+#
+# NOTE: This script is optimized for Deep Learning AMIs. For standard Ubuntu AMIs,
+#       additional driver installation and reboots may be required.
 
 # Configuration
 REMOTE_USER="ubuntu"
@@ -178,11 +197,29 @@ if ssh ${REMOTE_USER}@${REMOTE_HOST} "test -f /tmp/needs_gpu_reboot"; then
 fi
 
 # Step 12: Create virtual environment and install dependencies
-echo -e "${YELLOW}Step 12: Creating virtual environment and installing dependencies...${NC}"
-ssh ${REMOTE_USER}@${REMOTE_HOST} << EOF
+echo -e "${YELLOW}Step 12: Setting up Python environment...${NC}"
+
+# Check if Deep Learning AMI (has conda)
+IS_DL_AMI=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "which conda 2>/dev/null && echo 'true' || echo 'false'")
+
+if [ "$IS_DL_AMI" = "true" ]; then
+    echo -e "${GREEN}✓ Deep Learning AMI detected - using pre-configured environment${NC}"
+    ssh ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
 cd ~/cs627
 
-# Create venv if it doesn't exist
+# Deep Learning AMI: Use existing PyTorch environment
+source activate pytorch
+
+# Just install additional project requirements
+pip install transformers diffusers datasets accelerate evaluate sentence-transformers
+pip install matplotlib librosa soundfile h5py python-dotenv CMU-MultimodalSDK
+EOF
+else
+    echo -e "${YELLOW}Standard AMI detected - creating virtual environment${NC}"
+    ssh ${REMOTE_USER}@${REMOTE_HOST} << EOF
+cd ~/cs627
+
+# Standard AMI: Create and use venv
 if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi

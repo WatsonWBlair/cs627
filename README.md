@@ -49,19 +49,30 @@ See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions
 
 ### Cloud GPU Setup (Recommended)
 
-For faster training on cloud GPU instances (AWS, GCP, Azure, Lambda Labs):
+For production training, we recommend AWS EC2 with Deep Learning AMIs:
+
+**Optimal Configuration:**
+- **Instance**: `g5.4xlarge` (NVIDIA A10G, 24GB VRAM)
+- **AMI**: AWS Deep Learning OSS Nvidia Driver AMI (PyTorch 2.5)
+  - AMI ID (us-east-1): `ami-04f3e35dc85e9423b`
+- **Storage**: 200GB gp3 SSD
+- **Cost**: ~$1.62/hour (spot instances available)
 
 ```bash
-# Clone repository on cloud instance
-git clone https://github.com/WatsonWBlair/cs627.git
-cd cs627
+# Launch optimized instance
+aws ec2 run-instances \
+  --image-id ami-04f3e35dc85e9423b \
+  --instance-type g5.4xlarge \
+  --key-name your-key-name \
+  --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}"
 
-# Run automated setup and training
-chmod +x setup_and_train.sh
-./setup_and_train.sh
+# Once launched, deploy and train
+./scripts/setup_remote_instance.sh <instance-ip>
 ```
 
-See [Cloud Deployment Guide](CLOUD_DEPLOYMENT.md) for complete cloud setup instructions.
+Training time: ~3-4 hours for full encoder suite on A10G GPU.
+
+See [CLOUD_SETUP.md](CLOUD_SETUP.md) for detailed AWS/GCP/Azure configurations.
 
 ### 3. Use Trained Encoders
 
