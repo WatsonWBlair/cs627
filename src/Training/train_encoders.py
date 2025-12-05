@@ -65,6 +65,10 @@ VIDEO_DIR = os.getenv('VIDEO_DIR', 'data/cmumosi/frames/')
 # Weight directories (configurable via environment variables)
 OPTIMAL_WEIGHTS_DIR = os.getenv('OPTIMAL_WEIGHTS_DIR', 'OptimalWeights')
 CANDIDATE_WEIGHTS_DIR = os.getenv('CANDIDATE_WEIGHTS_DIR', 'CandidateWeights')
+ENCODER_CHECKPOINT_DIR = os.getenv('ENCODER_CHECKPOINT_DIR', 'EncoderCheckpoints')
+
+# Checkpoint settings
+SAVE_EVERY = int(os.getenv('SAVE_EVERY', '5'))  # Save checkpoint every N epochs
 
 # Instance identifier for organizing candidate weights
 INSTANCE_ID = os.getenv('INSTANCE_ID', '') or os.uname().nodename if hasattr(os, 'uname') else 'local'
@@ -662,6 +666,33 @@ class CrossModalTrainer:
                 encoder.adapter.save()
                 print(f"[OK] Saved {config.name} adapter: {encoder.adapter.weights_path}")
 
+    def save_checkpoint(self, epoch: int, losses: Dict[str, float], best_loss: float):
+        """
+        Save training checkpoint for encoder training.
+
+        Mirrors decoder checkpoint structure for consistency.
+
+        Args:
+            epoch: Current epoch number
+            losses: Dictionary of loss values per encoder
+            best_loss: Best total loss so far
+        """
+        os.makedirs(ENCODER_CHECKPOINT_DIR, exist_ok=True)
+        checkpoint_path = os.path.join(ENCODER_CHECKPOINT_DIR, f"checkpoint_epoch{epoch}.json")
+
+        checkpoint_data = {
+            'epoch': epoch,
+            'losses': losses,
+            'best_loss': best_loss,
+            'timestamp': datetime.now().isoformat(),
+            'encoders': [config.name for config in self.encoder_configs]
+        }
+
+        with open(checkpoint_path, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2)
+
+        print(f"[OK] Saved checkpoint: {checkpoint_path}")
+
 
 def collate_fn(batch: List[Dict]) -> Dict:
     """
@@ -928,9 +959,9 @@ def main():
             print(f"\n[OK] New best loss: {best_loss:.4f}")
             trainer.save_adapters()
 
-        # Save every 10 epochs
-        if epoch % 10 == 0:
-            print(f"\n[OK] Checkpoint at epoch {epoch}")
+        # Periodic checkpoint saving
+        if epoch % SAVE_EVERY == 0:
+            trainer.save_checkpoint(epoch, metrics, best_loss)
             trainer.save_adapters()
 
     # End training

@@ -19,6 +19,7 @@ services:
       - ./OptimalWeights:/workspace/OptimalWeights
       - ./CandidateWeights:/workspace/CandidateWeights
       - ./training_reports:/workspace/training_reports
+      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
       - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
     deploy:
       resources:
@@ -48,8 +49,70 @@ services:
       - ./OptimalWeights:/workspace/OptimalWeights
       - ./CandidateWeights:/workspace/CandidateWeights
       - ./training_reports:/workspace/training_reports
+      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
       - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
     command: python src/Training/train_encoders.py
+    restart: unless-stopped
+
+  # GPU Decoder Training Service
+  train-decoders-gpu:
+    image: watsonblair/cs627-svs:gpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs627-train-decoders-gpu
+    environment:
+      - DEVICE=cuda
+      - BATCH_SIZE=${BATCH_SIZE:-16}
+      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
+      - EPOCHS=${EPOCHS:-20}
+      - TRAIN_TEXT=${TRAIN_TEXT:-1}
+      - TRAIN_AUDIO=${TRAIN_AUDIO:-0}
+      - TRAIN_IMAGE=${TRAIN_IMAGE:-0}
+      - SEMANTIC_SOURCE=${SEMANTIC_SOURCE:-text_only}
+      - INSTANCE_ID=${HOSTNAME:-docker}
+    volumes:
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./CandidateWeights:/workspace/CandidateWeights
+      - ./training_reports:/workspace/training_reports
+      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
+      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python src/Training/train_decoders.py
+    restart: unless-stopped
+
+  # CPU Decoder Training Service
+  train-decoders-cpu:
+    image: watsonblair/cs627-svs:cpu
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: cs627-train-decoders-cpu
+    environment:
+      - DEVICE=cpu
+      - BATCH_SIZE=${BATCH_SIZE:-8}
+      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
+      - EPOCHS=${EPOCHS:-20}
+      - TRAIN_TEXT=${TRAIN_TEXT:-1}
+      - TRAIN_AUDIO=${TRAIN_AUDIO:-0}
+      - TRAIN_IMAGE=${TRAIN_IMAGE:-0}
+      - SEMANTIC_SOURCE=${SEMANTIC_SOURCE:-text_only}
+      - INSTANCE_ID=${HOSTNAME:-docker-cpu}
+    volumes:
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./CandidateWeights:/workspace/CandidateWeights
+      - ./training_reports:/workspace/training_reports
+      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
+      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+    command: python src/Training/train_decoders.py
     restart: unless-stopped
 
   # Development Service with Jupyter Lab
@@ -68,6 +131,8 @@ services:
       - ./OptimalWeights:/workspace/OptimalWeights
       - ./CandidateWeights:/workspace/CandidateWeights
       - ./training_reports:/workspace/training_reports
+      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
+      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
     ports:
       - "8888:8888"  # Jupyter Lab
       - "6006:6006"  # TensorBoard

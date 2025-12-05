@@ -39,9 +39,9 @@ pull_image() {
     docker pull ${DOCKER_HUB_USERNAME}/${DOCKER_HUB_REPO}:${tag}
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ ${description} pulled successfully${NC}"
+        echo -e "${GREEN}[OK] ${description} pulled successfully${NC}"
     else
-        echo -e "${RED}✗ Failed to pull ${description}${NC}"
+        echo -e "${RED}[ERR] Failed to pull ${description}${NC}"
         return 1
     fi
 }

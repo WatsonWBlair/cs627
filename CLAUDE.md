@@ -74,6 +74,7 @@ Convert semantic vectors back to modalities.
 **Architecture**: MLP Adapter + Pretrained Decoder
 - MLP Adapter translates from Semantic-Vector space
 - Pretrained decoder generates modality-specific output
+- Some decoders use specialized adapter architectures (e.g., learned sequence adapters)
 
 **Important**: To train a Decoder, an Encoder of the same modality must already exist.
 
@@ -83,9 +84,28 @@ Convert semantic vectors back to modalities.
 - `audio/` - Audio decoders (vector to waveform, etc.)
   - `vec_to_waveform.py` - Vector to audio decoder (`Vec_to_Audio`) using `suno/bark-small` - EXPERIMENTAL
 - `image/` - Image decoders (vector to visual)
-  - `vec_to_visual.py` - Vector to image decoder (`Vec_to_Image`) using `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
+  - `vec_to_visual.py` - Vector to image decoder (`Vec_to_Image`) using Learned Sequence Adapter + `CompVis/stable-diffusion-v1-4` - EXPERIMENTAL
 - `video/` - Video decoders (vector to motion, etc.)
 - `decoder_boilerplate.py` - Template for creating new decoders
+
+**Decoder Architectures**:
+
+| Decoder | Adapter Architecture | Output |
+|---------|---------------------|--------|
+| Vec_to_Text | 1024 → 768 (BART hidden) | Text string |
+| Vec_to_Audio | 1024 → 768 (SpeechT5 hidden) | Audio waveform |
+| Vec_to_Image | 1024 → 59,136 (77×768 CLIP sequence) | PIL Image |
+
+**Vec_to_Image Learned Sequence Adapter**:
+The image decoder uses a specialized architecture to interface with Stable Diffusion:
+```
+Semantic Vector (1024) → Adapter MLP (3 layers, 512 hidden)
+    → Flat Sequence (59,136) → Reshape → Prompt Embeds (77, 768)
+    → Stable Diffusion Pipeline → PIL Image
+```
+- Adapter output (59,136) is reshaped to match CLIP text encoder output shape
+- Passed directly to SD pipeline via `prompt_embeds` parameter
+- Supports configurable resolution (height/width)
 
 **Imports** (backward compatible):
 ```python
@@ -131,16 +151,36 @@ Training pipeline for encoders using raw multimodal data from CMU-MOSI:
 - **Training**: Contrastive learning with cross-modal triplets
 - **Memory Optimization**: Lazy loading prevents RAM overflow when training on large video datasets
 
-#### Decoder Alignment
-Dual loss approach (Fig. 4 in paper):
+#### Decoder Training (`src/Training/train_decoders.py`)
+Unified cross-modal decoder training pipeline:
+
+**Architecture**:
+- **Trainer**: `CrossModalDecoderTrainer` in `decoder_trainer.py`
+- **Losses**: Modality-specific in `decoder_losses.py`
+- **Collate**: `collate_fn_decoder_training` in `collate_functions.py`
+
+**Loss Functions** (Dual loss approach, Fig. 4 in paper):
 
 1. **Reconstruction Loss**: Measures decoder's fidelity to training data's aesthetic features
-2. **Vector-Space Loss**: Measures semantic drift after output is re-encoded to shared vector space
+   - Text: Cross-entropy with teacher forcing
+   - Audio: Two-stage (proxy MSE → mel reconstruction)
+   - Image: Proxy loss on CLIP embedding space
+
+2. **Vector-Space Loss** (monitoring only): Measures semantic drift after output is re-encoded
    - Uses negative cosine similarity: `-cos_sim(vecA, vecB)`
 
-Both losses measure reconstruction quality from different perspectives.
+**Training Stages**:
+- `proxy`: Differentiable loss on adapter output (fast, stable)
+- `generation`: Non-differentiable generation with proxy gradients
+- `full`: Combined proxy + generation
 
 **Total Decoder Loss**: `α × Reconstruction Loss + β × Semantic Fidelity Loss`
+
+**Environment Variables**:
+```bash
+TRAIN_TEXT=1 TRAIN_AUDIO=0 TRAIN_IMAGE=0 python src/Training/train_decoders.py
+SEMANTIC_SOURCE=text_only  # or 'matched', 'mixed'
+```
 
 ### Inference Modules (`src/Inference/`)
 
@@ -295,6 +335,7 @@ Weights are automatically synced by setup script.
 - **All components inherit from**: `torch.nn.Module` (not Pipeline or other base classes)
 - **Multiple encoders per modality**: Each modality directory can contain multiple feature-specific encoders (e.g., audio/waveform_to_vec.py, audio/tone_to_vec.py)
 - **EXPERIMENTAL status**: New encoders and decoders should be marked EXPERIMENTAL until validated
+- **No emojis in shell scripts**: Use ASCII characters only in .sh files for portability across different terminals and systems. Use ASCII art or text indicators like `[OK]`, `[WARN]`, `[ERR]`, `>>>`, `---` instead.
 
 ## Project Documentation
 
@@ -309,6 +350,14 @@ Weights are automatically synced by setup script.
 - **tools/create_encoder.py** - Generator script for new encoders (marks as EXPERIMENTAL by default)
 - **tools/create_decoder.py** - Generator script for new decoders (marks as EXPERIMENTAL by default)
 - **tools/validate_module.py** - Functional validation for production modules (skips experimental)
+
+## Utility Scripts
+
+- **scripts/generate_decoder_examples.py** - Generate output examples from all decoders
+  ```bash
+  python scripts/generate_decoder_examples.py --modalities text audio image
+  python scripts/generate_decoder_examples.py --text "Hello world"
+  ```
 
 ## Project Structure
 
@@ -334,7 +383,10 @@ cs627/
 │   │   │   └── vec_to_visual.py    # Vec_to_Image (EXPERIMENTAL)
 │   │   └── video/                # Video decoders
 │   ├── Training/                 # Training scripts and data loaders
-│   │   ├── train_encoders.py   # Main training script
+│   │   ├── train_encoders.py     # Encoder training script
+│   │   ├── train_decoders.py     # Decoder training script
+│   │   ├── decoder_trainer.py    # CrossModalDecoderTrainer class
+│   │   ├── decoder_losses.py     # Modality-specific decoder losses
 │   │   └── Data_Wrangling/       # Dataset loaders (MOSI, etc.)
 │   ├── Inference/                # Inference modules (chatbot, summarization)
 │   └── utils/                    # Shared utilities (Adapter, etc.)

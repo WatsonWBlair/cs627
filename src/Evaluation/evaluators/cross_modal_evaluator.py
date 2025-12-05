@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 from tqdm import tqdm
 
-from ..metrics import compute_cross_modal_metrics, print_metrics_summary
+from ..encoder_metrics import compute_cross_modal_metrics, print_metrics_summary
 
 
 class CrossModalEvaluator:
@@ -234,7 +234,7 @@ class CrossModalEvaluator:
         embeddings = self.encode_dataset(dataset, batch_size, max_samples)
 
         # Compute metrics for each pair
-        from ..metrics import compute_recall_at_k
+        from ..encoder_metrics import compute_recall_at_k
 
         results = {}
         for query_mod, target_mod in modality_pairs:

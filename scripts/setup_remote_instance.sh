@@ -61,9 +61,9 @@ echo -e "${GREEN}Setting up remote instance at ${REMOTE_USER}@${REMOTE_HOST}${NC
 echo -e "${YELLOW}Step 1: Creating directory structure on remote...${NC}"
 ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}/{data/cmumosi,src,scripts,OptimalWeights,tests}"
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Directory structure created${NC}"
+    echo -e "${GREEN}[OK] Directory structure created${NC}"
 else
-    echo -e "${RED}✗ Failed to create directories${NC}"
+    echo -e "${RED}[ERR] Failed to create directories${NC}"
     exit 1
 fi
 
@@ -77,9 +77,9 @@ rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude 'OptimalWeights/*.pth' \
     src/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/src/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Source code synced${NC}"
+    echo -e "${GREEN}[OK] Source code synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync source code${NC}"
+    echo -e "${RED}[ERR] Failed to sync source code${NC}"
     exit 1
 fi
 
@@ -90,9 +90,9 @@ rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude '*.pyc' \
     scripts/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/scripts/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Scripts synced${NC}"
+    echo -e "${GREEN}[OK] Scripts synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync scripts${NC}"
+    echo -e "${RED}[ERR] Failed to sync scripts${NC}"
     exit 1
 fi
 
@@ -103,9 +103,9 @@ rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude '*.pyc' \
     tests/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/tests/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Tests synced${NC}"
+    echo -e "${GREEN}[OK] Tests synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync tests${NC}"
+    echo -e "${RED}[ERR] Failed to sync tests${NC}"
     exit 1
 fi
 
@@ -116,9 +116,9 @@ rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     CLAUDE.md \
     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Config files synced${NC}"
+    echo -e "${GREEN}[OK] Config files synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync config files${NC}"
+    echo -e "${RED}[ERR] Failed to sync config files${NC}"
     exit 1
 fi
 
@@ -127,9 +127,9 @@ if [ -d "data/cmumosi" ]; then
     echo -e "${YELLOW}Step 6: Syncing MOSI dataset (this may take a while)...${NC}"
     rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" data/cmumosi/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/data/cmumosi/
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ MOSI data synced${NC}"
+        echo -e "${GREEN}[OK] MOSI data synced${NC}"
     else
-        echo -e "${RED}✗ Failed to sync MOSI data${NC}"
+        echo -e "${RED}[ERR] Failed to sync MOSI data${NC}"
         exit 1
     fi
 else
@@ -141,9 +141,9 @@ if ls OptimalWeights/*.pth 1> /dev/null 2>&1; then
     echo -e "${YELLOW}Step 7: Syncing model weights...${NC}"
     rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" OptimalWeights/*.pth ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/OptimalWeights/
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Model weights synced${NC}"
+        echo -e "${GREEN}[OK] Model weights synced${NC}"
     else
-        echo -e "${RED}✗ Failed to sync model weights${NC}"
+        echo -e "${RED}[ERR] Failed to sync model weights${NC}"
         exit 1
     fi
 else
@@ -153,15 +153,15 @@ fi
 # Step 8: Clean up disk space and prepare Python environment
 echo -e "${YELLOW}Step 8: Cleaning up disk space...${NC}"
 ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "sudo apt clean 2>/dev/null || true"
-echo -e "${GREEN}✓ Disk space cleaned${NC}"
+echo -e "${GREEN}[OK] Disk space cleaned${NC}"
 
 # Step 9: Install Python venv package if needed
 echo -e "${YELLOW}Step 9: Checking Python virtual environment support...${NC}"
 ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "python3 -m venv --help > /dev/null 2>&1 || sudo apt install -y python3-venv 2>/dev/null || sudo yum install -y python3-virtualenv 2>/dev/null"
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Python venv support available${NC}"
+    echo -e "${GREEN}[OK] Python venv support available${NC}"
 else
-    echo -e "${RED}✗ Failed to setup Python venv${NC}"
+    echo -e "${RED}[ERR] Failed to setup Python venv${NC}"
     exit 1
 fi
 
@@ -170,7 +170,7 @@ echo -e "${YELLOW}Step 10: Checking for GPU support...${NC}"
 GPU_TYPE=$(ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "lspci 2>/dev/null | grep -E 'NVIDIA|AMD' | head -1")
 
 if echo "$GPU_TYPE" | grep -q "NVIDIA"; then
-    echo -e "${GREEN}✓ NVIDIA GPU detected${NC}"
+    echo -e "${GREEN}[OK] NVIDIA GPU detected${NC}"
     echo -e "${YELLOW}Installing NVIDIA drivers and CUDA toolkit...${NC}"
     ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
 # Check if nvidia-smi already works
@@ -194,7 +194,7 @@ fi
 EOF
     PYTORCH_INDEX="https://download.pytorch.org/whl/cu121"  # CUDA 12.1
 elif echo "$GPU_TYPE" | grep -q "AMD"; then
-    echo -e "${YELLOW}⚠ AMD GPU detected - limited ML support${NC}"
+    echo -e "${YELLOW}[WARN] AMD GPU detected - limited ML support${NC}"
     echo -e "${YELLOW}AMD GPUs require ROCm which has limited support on Ubuntu 24.04${NC}"
     PYTORCH_INDEX="https://download.pytorch.org/whl/cpu"  # Use CPU version for AMD
 else
@@ -217,7 +217,7 @@ echo -e "${YELLOW}Step 12: Setting up Python environment...${NC}"
 IS_DL_AMI=$(ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "which conda 2>/dev/null && echo 'true' || echo 'false'")
 
 if [ "$IS_DL_AMI" = "true" ]; then
-    echo -e "${GREEN}✓ Deep Learning AMI detected - using pre-configured environment${NC}"
+    echo -e "${GREEN}[OK] Deep Learning AMI detected - using pre-configured environment${NC}"
     ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
 cd ~/cs627
 
@@ -276,9 +276,9 @@ else:
 EOF
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Python environment configured${NC}"
+    echo -e "${GREEN}[OK] Python environment configured${NC}"
 else
-    echo -e "${YELLOW}⚠ Warning: Some packages may not have installed correctly${NC}"
+    echo -e "${YELLOW}[WARN] Warning: Some packages may not have installed correctly${NC}"
 fi
 
 echo -e "${GREEN}========================================${NC}"

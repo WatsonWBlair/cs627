@@ -58,6 +58,7 @@ COPY *.md /workspace/
 RUN mkdir -p /workspace/data/cmumosi/{mosi,audio,frames,videos} \
              /workspace/OptimalWeights \
              /workspace/CandidateWeights \
+             /workspace/EncoderCheckpoints \
              /workspace/DecoderCheckpoints \
              /workspace/training_reports
 

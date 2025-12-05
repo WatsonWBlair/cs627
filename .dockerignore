@@ -36,8 +36,11 @@ data/cmumosi/audio/*.wav
 *.ckpt
 *.safetensors
 CandidateWeights/
-training_reports/*.png
-training_reports/*.json
+EncoderCheckpoints/
+DecoderCheckpoints/
+
+# Note: training_reports/ is NOT excluded to allow report persistence
+# Reports are typically mounted as volumes during training
 
 # Jupyter
 .ipynb_checkpoints/

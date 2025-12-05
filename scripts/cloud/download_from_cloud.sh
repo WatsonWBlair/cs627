@@ -4,8 +4,10 @@
 # ==============================================================================
 # This script downloads:
 #   - OptimalWeights/ (trained adapter weights)
+#   - EncoderCheckpoints/ (encoder training checkpoints)
+#   - DecoderCheckpoints/ (decoder training checkpoints)
 #   - results/ (training logs, evaluation metrics)
-#   - training_reports/ (loss curves, checkpoints)
+#   - training_reports/ (loss curves, metrics)
 #
 # Usage:
 #   ./scripts/cloud/download_from_cloud.sh [OPTIONS]
@@ -56,6 +58,8 @@ fi
 # Default values
 CLOUD_PROJECT_DIR="${CLOUD_PROJECT_DIR:-~/cs627}"
 OPTIMAL_WEIGHTS_DIR="${OPTIMAL_WEIGHTS_DIR:-OptimalWeights}"
+ENCODER_CHECKPOINT_DIR="${ENCODER_CHECKPOINT_DIR:-EncoderCheckpoints}"
+DECODER_CHECKPOINT_DIR="${DECODER_CHECKPOINT_DIR:-DecoderCheckpoints}"
 RESULTS_DIR="${RESULTS_DIR:-results}"
 TRAINING_REPORTS_DIR="${TRAINING_REPORTS_DIR:-training_reports}"
 CLOUD_SSH_KEY="${CLOUD_SSH_KEY}"
@@ -123,6 +127,8 @@ DOWNLOAD_DIR="$PROJECT_ROOT/CandidateWeights/${HOSTNAME_SHORT}_${TIMESTAMP}"
 
 # Create directory structure
 mkdir -p "$DOWNLOAD_DIR/OptimalWeights"
+mkdir -p "$DOWNLOAD_DIR/EncoderCheckpoints"
+mkdir -p "$DOWNLOAD_DIR/DecoderCheckpoints"
 mkdir -p "$DOWNLOAD_DIR/results"
 mkdir -p "$DOWNLOAD_DIR/training_reports"
 
@@ -140,7 +146,7 @@ echo -e "${YELLOW}Download To:${NC} $DOWNLOAD_DIR"
 echo ""
 
 if [ -n "$DRY_RUN" ]; then
-    echo -e "${YELLOW}⚠️  DRY RUN MODE - No files will be transferred${NC}"
+    echo -e "${YELLOW}[WARN] DRY RUN MODE - No files will be transferred${NC}"
     echo ""
 fi
 
@@ -148,11 +154,11 @@ fi
 # Test SSH connection
 # ==============================================================================
 
-echo -e "${BLUE}[1/3] Testing SSH connection...${NC}"
+echo -e "${BLUE}[1/6] Testing SSH connection...${NC}"
 if ssh $SSH_OPTS -o ConnectTimeout=10 "$CLOUD_CONN" "echo 'Connection successful'" > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ SSH connection successful${NC}"
+    echo -e "${GREEN}[OK] SSH connection successful${NC}"
 else
-    echo -e "${RED}✗ Failed to connect to $CLOUD_CONN${NC}"
+    echo -e "${RED}[ERR] Failed to connect to $CLOUD_CONN${NC}"
     echo -e "${YELLOW}Check your .env configuration and network connectivity${NC}"
     exit 1
 fi
@@ -162,7 +168,7 @@ echo ""
 # Download adapter weights (ALWAYS)
 # ==============================================================================
 
-echo -e "${BLUE}[2/4] Downloading trained adapter weights...${NC}"
+echo -e "${BLUE}[2/6] Downloading trained adapter weights...${NC}"
 
 # Check if OptimalWeights directory exists on remote
 if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR' ]"; then
@@ -173,11 +179,47 @@ if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR' ]
     if [ -z "$DRY_RUN" ]; then
         # Count downloaded weights
         WEIGHT_COUNT=$(find "$DOWNLOAD_DIR/OptimalWeights" -name "*.pth" 2>/dev/null | wc -l)
-        echo -e "${GREEN}✓ Downloaded $WEIGHT_COUNT adapter weight files${NC}"
+        echo -e "${GREEN}[OK] Downloaded $WEIGHT_COUNT adapter weight files${NC}"
     fi
 else
-    echo -e "${YELLOW}⚠️  No OptimalWeights directory found on remote instance${NC}"
+    echo -e "${YELLOW}[WARN] No OptimalWeights directory found on remote instance${NC}"
     echo -e "${YELLOW}   Training may not have completed or saved weights${NC}"
+fi
+echo ""
+
+# ==============================================================================
+# Download checkpoints
+# ==============================================================================
+
+echo -e "${BLUE}[3/6] Downloading encoder checkpoints...${NC}"
+
+if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$ENCODER_CHECKPOINT_DIR' ]"; then
+    eval rsync $RSYNC_OPTS \
+        "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$ENCODER_CHECKPOINT_DIR/" \
+        "$DOWNLOAD_DIR/EncoderCheckpoints/"
+
+    if [ -z "$DRY_RUN" ]; then
+        CKPT_COUNT=$(find "$DOWNLOAD_DIR/EncoderCheckpoints" -name "*.json" 2>/dev/null | wc -l)
+        echo -e "${GREEN}[OK] Downloaded $CKPT_COUNT encoder checkpoint files${NC}"
+    fi
+else
+    echo -e "${YELLOW}[WARN] No EncoderCheckpoints directory found${NC}"
+fi
+echo ""
+
+echo -e "${BLUE}[4/6] Downloading decoder checkpoints...${NC}"
+
+if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$DECODER_CHECKPOINT_DIR' ]"; then
+    eval rsync $RSYNC_OPTS \
+        "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$DECODER_CHECKPOINT_DIR/" \
+        "$DOWNLOAD_DIR/DecoderCheckpoints/"
+
+    if [ -z "$DRY_RUN" ]; then
+        CKPT_COUNT=$(find "$DOWNLOAD_DIR/DecoderCheckpoints" -name "*.json" 2>/dev/null | wc -l)
+        echo -e "${GREEN}[OK] Downloaded $CKPT_COUNT decoder checkpoint files${NC}"
+    fi
+else
+    echo -e "${YELLOW}[WARN] No DecoderCheckpoints directory found${NC}"
 fi
 echo ""
 
@@ -186,7 +228,7 @@ echo ""
 # ==============================================================================
 
 if [ "$DOWNLOAD_RESULTS" = true ]; then
-    echo -e "${BLUE}[3/4] Downloading training results...${NC}"
+    echo -e "${BLUE}[5/6] Downloading training results...${NC}"
 
     # Download results directory
     if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$RESULTS_DIR' ]"; then
@@ -195,14 +237,14 @@ if [ "$DOWNLOAD_RESULTS" = true ]; then
             "$DOWNLOAD_DIR/results/"
 
         if [ -z "$DRY_RUN" ]; then
-            echo -e "${GREEN}✓ Results downloaded${NC}"
+            echo -e "${GREEN}[OK] Results downloaded${NC}"
         fi
     else
-        echo -e "${YELLOW}⚠️  No results directory found${NC}"
+        echo -e "${YELLOW}[WARN] No results directory found${NC}"
     fi
     echo ""
 
-    echo -e "${BLUE}[4/4] Downloading training reports...${NC}"
+    echo -e "${BLUE}[6/6] Downloading training reports...${NC}"
 
     # Download training_reports directory (if it exists)
     if ssh $SSH_OPTS "$CLOUD_CONN" "[ -d '$CLOUD_PROJECT_DIR/$TRAINING_REPORTS_DIR' ]"; then
@@ -211,15 +253,15 @@ if [ "$DOWNLOAD_RESULTS" = true ]; then
             "$DOWNLOAD_DIR/training_reports/"
 
         if [ -z "$DRY_RUN" ]; then
-            echo -e "${GREEN}✓ Training reports downloaded${NC}"
+            echo -e "${GREEN}[OK] Training reports downloaded${NC}"
         fi
     else
-        echo -e "${YELLOW}⚠️  No training_reports directory found${NC}"
+        echo -e "${YELLOW}[WARN] No training_reports directory found${NC}"
     fi
     echo ""
 else
-    echo -e "${BLUE}[3/4] Skipping results (--weights-only specified)${NC}"
-    echo -e "${BLUE}[4/4] Skipping training reports (--weights-only specified)${NC}"
+    echo -e "${BLUE}[5/6] Skipping results (--weights-only specified)${NC}"
+    echo -e "${BLUE}[6/6] Skipping training reports (--weights-only specified)${NC}"
     echo ""
 fi
 
@@ -236,11 +278,13 @@ if [ -z "$DRY_RUN" ]; then
     echo -e "  ${GREEN}$DOWNLOAD_DIR/${NC}"
     echo ""
     echo -e "${YELLOW}Contents:${NC}"
-    echo -e "  📦 Adapter weights: ${GREEN}$DOWNLOAD_DIR/OptimalWeights/${NC}"
+    echo -e "  [+] Adapter weights: ${GREEN}$DOWNLOAD_DIR/OptimalWeights/${NC}"
+    echo -e "  [+] Encoder checkpoints: ${GREEN}$DOWNLOAD_DIR/EncoderCheckpoints/${NC}"
+    echo -e "  [+] Decoder checkpoints: ${GREEN}$DOWNLOAD_DIR/DecoderCheckpoints/${NC}"
 
     if [ "$DOWNLOAD_RESULTS" = true ]; then
-        echo -e "  📊 Results: ${GREEN}$DOWNLOAD_DIR/results/${NC}"
-        echo -e "  📈 Training reports: ${GREEN}$DOWNLOAD_DIR/training_reports/${NC}"
+        echo -e "  [+] Results: ${GREEN}$DOWNLOAD_DIR/results/${NC}"
+        echo -e "  [+] Training reports: ${GREEN}$DOWNLOAD_DIR/training_reports/${NC}"
     fi
 
     echo ""

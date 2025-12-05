@@ -135,7 +135,7 @@ echo -e "${YELLOW}Local Directory:${NC} $PROJECT_ROOT"
 echo ""
 
 if [ -n "$DRY_RUN" ]; then
-    echo -e "${YELLOW}⚠️  DRY RUN MODE - No files will be transferred${NC}"
+    echo -e "${YELLOW}[WARN]  DRY RUN MODE - No files will be transferred${NC}"
     echo ""
 fi
 
@@ -155,7 +155,7 @@ fi
 
 if [ "$UPLOAD_WEIGHTS" = true ]; then
     if [ ! -d "$PROJECT_ROOT/$OPTIMAL_WEIGHTS_DIR" ]; then
-        echo -e "${YELLOW}⚠️  Warning: OptimalWeights directory not found${NC}"
+        echo -e "${YELLOW}[WARN]  Warning: OptimalWeights directory not found${NC}"
         echo -e "${YELLOW}Skipping weights upload (this is normal for new training runs)${NC}"
         UPLOAD_WEIGHTS=false
         echo ""
@@ -168,9 +168,9 @@ fi
 
 echo -e "${BLUE}[1/3] Testing SSH connection...${NC}"
 if ssh $SSH_OPTS -o ConnectTimeout=10 "$CLOUD_CONN" "echo 'Connection successful'" > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ SSH connection successful${NC}"
+    echo -e "${GREEN}[OK] SSH connection successful${NC}"
 else
-    echo -e "${RED}✗ Failed to connect to $CLOUD_CONN${NC}"
+    echo -e "${RED}[ERR] Failed to connect to $CLOUD_CONN${NC}"
     echo -e "${YELLOW}Check your .env configuration and network connectivity${NC}"
     exit 1
 fi
@@ -186,7 +186,7 @@ if [ -z "$DRY_RUN" ]; then
     if [ "$UPLOAD_WEIGHTS" = true ]; then
         ssh $SSH_OPTS "$CLOUD_CONN" "mkdir -p $CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR"
     fi
-    echo -e "${GREEN}✓ Remote directories created${NC}"
+    echo -e "${GREEN}[OK] Remote directories created${NC}"
     echo ""
 else
     echo -e "${BLUE}[2/3] Skipping directory creation (dry run)${NC}"
@@ -208,7 +208,7 @@ if [ "$UPLOAD_DATA" = true ]; then
 
     if [ -z "$DRY_RUN" ]; then
         echo ""
-        echo -e "${GREEN}✓ Data uploaded successfully${NC}"
+        echo -e "${GREEN}[OK] Data uploaded successfully${NC}"
     fi
     echo ""
 else
@@ -228,7 +228,7 @@ if [ "$UPLOAD_WEIGHTS" = true ]; then
         "$CLOUD_CONN:$CLOUD_PROJECT_DIR/$OPTIMAL_WEIGHTS_DIR/"
 
     if [ -z "$DRY_RUN" ]; then
-        echo -e "${GREEN}✓ Adapter weights uploaded${NC}"
+        echo -e "${GREEN}[OK] Adapter weights uploaded${NC}"
     fi
     echo ""
 fi
@@ -245,11 +245,11 @@ if [ -z "$DRY_RUN" ]; then
     echo -e "${YELLOW}Uploaded artifacts:${NC}"
 
     if [ "$UPLOAD_DATA" = true ]; then
-        echo -e "  📦 Preprocessed data: ${GREEN}$MOSI_DATA_PATH/${NC}"
+        echo -e "  [+] Preprocessed data: ${GREEN}$MOSI_DATA_PATH/${NC}"
     fi
 
     if [ "$UPLOAD_WEIGHTS" = true ]; then
-        echo -e "  🎯 Adapter weights: ${GREEN}$OPTIMAL_WEIGHTS_DIR/${NC}"
+        echo -e "  [+] Adapter weights: ${GREEN}$OPTIMAL_WEIGHTS_DIR/${NC}"
     fi
 
     echo ""

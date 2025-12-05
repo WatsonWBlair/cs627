@@ -111,7 +111,7 @@ fi
 
 # Get AMI ID for the specified region (if not us-east-1)
 if [ "$REGION" != "us-east-1" ]; then
-    echo -e "${YELLOW}⚠️  Using custom region. You may need to specify a different AMI ID.${NC}"
+    echo -e "${YELLOW}[WARN]  Using custom region. You may need to specify a different AMI ID.${NC}"
 fi
 
 # Instance type configurations
@@ -141,10 +141,10 @@ fi
 echo -e "  Region: ${GREEN}$REGION${NC}"
 echo -e "  Key Name: ${GREEN}$KEY_NAME${NC}"
 echo -e "  Security Group: ${GREEN}$SECURITY_GROUP${NC}"
-echo -e "  Purchase Option: ${GREEN}$([ "$USE_SPOT" = true ] && echo "Spot Instance ⚠️" || echo "On-Demand ✓")${NC}"
+echo -e "  Purchase Option: ${GREEN}$([ "$USE_SPOT" = true ] && echo "Spot Instance [WARN]" || echo "On-Demand [OK]")${NC}"
 
 if [ -n "$DRY_RUN" ]; then
-    echo -e "  ${YELLOW}⚠️  DRY RUN MODE - No instance will be launched${NC}"
+    echo -e "  ${YELLOW}[WARN]  DRY RUN MODE - No instance will be launched${NC}"
 fi
 
 echo ""
@@ -152,7 +152,7 @@ echo ""
 # Warning for spot instances
 if [ "$USE_SPOT" = true ]; then
     echo -e "${YELLOW}╔════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║                    ⚠️  SPOT INSTANCE WARNING ⚠️                         ║${NC}"
+    echo -e "${YELLOW}║                    [WARN]  SPOT INSTANCE WARNING [WARN]                         ║${NC}"
     echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════════════╝${NC}"
     echo -e "${YELLOW}Spot instances can be interrupted with 2 minutes notice!${NC}"
     echo -e "${YELLOW}For training runs <4 hours, on-demand is recommended.${NC}"
@@ -232,7 +232,7 @@ if [ -n "$DRY_RUN" ]; then
     LAUNCH_CMD="$LAUNCH_CMD $DRY_RUN"
 fi
 
-echo -e "${GREEN}✓ Configuration prepared${NC}"
+echo -e "${GREEN}[OK] Configuration prepared${NC}"
 echo ""
 
 # Launch instance
@@ -243,7 +243,7 @@ LAUNCH_OUTPUT=$(eval $LAUNCH_CMD 2>&1)
 LAUNCH_EXIT_CODE=$?
 
 if [ $LAUNCH_EXIT_CODE -ne 0 ]; then
-    echo -e "${RED}✗ Failed to launch instance${NC}"
+    echo -e "${RED}[ERR] Failed to launch instance${NC}"
     echo "$LAUNCH_OUTPUT"
     exit 1
 fi
@@ -257,12 +257,12 @@ fi
 INSTANCE_ID=$(echo "$LAUNCH_OUTPUT" | grep -o '"InstanceId": "[^"]*"' | cut -d'"' -f4)
 
 if [ -z "$INSTANCE_ID" ]; then
-    echo -e "${RED}✗ Could not extract instance ID from response${NC}"
+    echo -e "${RED}[ERR] Could not extract instance ID from response${NC}"
     echo "$LAUNCH_OUTPUT"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Instance launched: $INSTANCE_ID${NC}"
+echo -e "${GREEN}[OK] Instance launched: $INSTANCE_ID${NC}"
 echo ""
 
 # Wait for instance to be running
@@ -274,7 +274,7 @@ INSTANCE_DETAILS=$(aws ec2 describe-instances --region $REGION --instance-ids $I
 PUBLIC_IP=$(echo "$INSTANCE_DETAILS" | grep -o '"PublicIpAddress": "[^"]*"' | cut -d'"' -f4)
 PRIVATE_IP=$(echo "$INSTANCE_DETAILS" | grep -o '"PrivateIpAddress": "[^"]*"' | cut -d'"' -f4)
 
-echo -e "${GREEN}✓ Instance is running${NC}"
+echo -e "${GREEN}[OK] Instance is running${NC}"
 echo ""
 
 # Display connection info
@@ -337,7 +337,7 @@ if [ -n "${INSTANCE_INFO[$INSTANCE_TYPE]}" ]; then
     fi
 fi
 echo ""
-echo -e "${RED}⚠️  Remember to terminate the instance to avoid charges!${NC}"
+echo -e "${RED}[WARN]  Remember to terminate the instance to avoid charges!${NC}"
 echo ""
 
 # Save instance info to file

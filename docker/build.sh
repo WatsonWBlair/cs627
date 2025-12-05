@@ -36,9 +36,9 @@ build_image() {
     docker build -f ${dockerfile} -t ${DOCKER_HUB_USERNAME}/${DOCKER_HUB_REPO}:${tag} .
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ ${description} built successfully${NC}"
+        echo -e "${GREEN}[OK] ${description} built successfully${NC}"
     else
-        echo -e "${RED}✗ Failed to build ${description}${NC}"
+        echo -e "${RED}[ERR] Failed to build ${description}${NC}"
         exit 1
     fi
 }
@@ -55,7 +55,7 @@ build_image "Dockerfile" "${GPU_TAG}" "GPU-enabled image"
 # Tag GPU image as latest
 docker tag ${DOCKER_HUB_USERNAME}/${DOCKER_HUB_REPO}:${GPU_TAG} \
            ${DOCKER_HUB_USERNAME}/${DOCKER_HUB_REPO}:${LATEST_TAG}
-echo -e "${GREEN}✓ Tagged GPU image as latest${NC}"
+echo -e "${GREEN}[OK] Tagged GPU image as latest${NC}"
 
 # Build CPU image
 build_image "Dockerfile.cpu" "${CPU_TAG}" "CPU-only image"

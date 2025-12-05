@@ -28,17 +28,11 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt /workspace/
 
-# Create temporary requirements for CPU-only installation
-RUN sed 's/torch>=2.0.0,<3.0/torch>=2.0.0,<3.0 --index-url https:\/\/download.pytorch.org\/whl\/cpu/' requirements.txt > requirements-cpu.txt
-
 # Install Python dependencies (CPU versions)
+# First install CPU-only PyTorch, then the rest from requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir transformers diffusers datasets accelerate evaluate sentence-transformers && \
-    pip install --no-cache-dir mteb rouge-score nltk scipy scikit-learn && \
-    pip install --no-cache-dir librosa soundfile Pillow opencv-python-headless && \
-    pip install --no-cache-dir h5py pandas numpy tqdm validators matplotlib python-dotenv && \
-    pip install --no-cache-dir yt-dlp
+    pip install --no-cache-dir -r requirements.txt
 
 # Install CMU-MultimodalSDK
 RUN git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git /tmp/CMU-MultimodalSDK && \
@@ -62,6 +56,7 @@ COPY *.md /workspace/
 RUN mkdir -p /workspace/data/cmumosi/{mosi,audio,frames,videos} \
              /workspace/OptimalWeights \
              /workspace/CandidateWeights \
+             /workspace/EncoderCheckpoints \
              /workspace/DecoderCheckpoints \
              /workspace/training_reports
 

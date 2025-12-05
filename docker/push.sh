@@ -50,9 +50,9 @@ push_image() {
     docker push ${DOCKER_HUB_USERNAME}/${DOCKER_HUB_REPO}:${tag}
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ ${description} pushed successfully${NC}"
+        echo -e "${GREEN}[OK] ${description} pushed successfully${NC}"
     else
-        echo -e "${RED}✗ Failed to push ${description}${NC}"
+        echo -e "${RED}[ERR] Failed to push ${description}${NC}"
         return 1
     fi
 }

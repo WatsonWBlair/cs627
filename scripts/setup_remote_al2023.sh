@@ -29,9 +29,9 @@ echo -e "${GREEN}Setting up remote instance at ${REMOTE_USER}@${REMOTE_HOST}${NC
 echo -e "${YELLOW}Step 1: Creating directory structure on remote...${NC}"
 ssh -i ${SSH_KEY} ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}/{data/cmumosi,src,scripts,OptimalWeights,tests,training_reports}"
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Directory structure created${NC}"
+    echo -e "${GREEN}[OK] Directory structure created${NC}"
 else
-    echo -e "${RED}✗ Failed to create directories${NC}"
+    echo -e "${RED}[ERR] Failed to create directories${NC}"
     exit 1
 fi
 
@@ -45,9 +45,9 @@ rsync -avz --progress -e "ssh -i ${SSH_KEY}" \
     --exclude 'OptimalWeights/*.pth' \
     src/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/src/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Source code synced${NC}"
+    echo -e "${GREEN}[OK] Source code synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync source code${NC}"
+    echo -e "${RED}[ERR] Failed to sync source code${NC}"
     exit 1
 fi
 
@@ -58,9 +58,9 @@ rsync -avz --progress -e "ssh -i ${SSH_KEY}" \
     --exclude '*.pyc' \
     scripts/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/scripts/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Scripts synced${NC}"
+    echo -e "${GREEN}[OK] Scripts synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync scripts${NC}"
+    echo -e "${RED}[ERR] Failed to sync scripts${NC}"
     exit 1
 fi
 
@@ -71,9 +71,9 @@ rsync -avz --progress -e "ssh -i ${SSH_KEY}" \
     --exclude '*.pyc' \
     tests/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/tests/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Tests synced${NC}"
+    echo -e "${GREEN}[OK] Tests synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync tests${NC}"
+    echo -e "${RED}[ERR] Failed to sync tests${NC}"
     exit 1
 fi
 
@@ -84,9 +84,9 @@ rsync -avz --progress -e "ssh -i ${SSH_KEY}" \
     CLAUDE.md \
     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Config files synced${NC}"
+    echo -e "${GREEN}[OK] Config files synced${NC}"
 else
-    echo -e "${RED}✗ Failed to sync config files${NC}"
+    echo -e "${RED}[ERR] Failed to sync config files${NC}"
     exit 1
 fi
 
@@ -95,9 +95,9 @@ if [ -d "data/cmumosi" ]; then
     echo -e "${YELLOW}Step 6: Syncing MOSI dataset (this may take a while)...${NC}"
     rsync -avz --progress -e "ssh -i ${SSH_KEY}" data/cmumosi/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/data/cmumosi/
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ MOSI data synced${NC}"
+        echo -e "${GREEN}[OK] MOSI data synced${NC}"
     else
-        echo -e "${RED}✗ Failed to sync MOSI data${NC}"
+        echo -e "${RED}[ERR] Failed to sync MOSI data${NC}"
         exit 1
     fi
 else
@@ -109,9 +109,9 @@ if ls OptimalWeights/*.pth 1> /dev/null 2>&1; then
     echo -e "${YELLOW}Step 7: Syncing model weights...${NC}"
     rsync -avz --progress -e "ssh -i ${SSH_KEY}" OptimalWeights/*.pth ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/OptimalWeights/
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Model weights synced${NC}"
+        echo -e "${GREEN}[OK] Model weights synced${NC}"
     else
-        echo -e "${RED}✗ Failed to sync model weights${NC}"
+        echo -e "${RED}[ERR] Failed to sync model weights${NC}"
         exit 1
     fi
 else
@@ -150,9 +150,9 @@ pip list | grep -E "torch|transformers|diffusers" | head -5
 EOF
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Python environment configured${NC}"
+    echo -e "${GREEN}[OK] Python environment configured${NC}"
 else
-    echo -e "${YELLOW}⚠ Warning: Some packages may not have installed correctly${NC}"
+    echo -e "${YELLOW}[WARN] Warning: Some packages may not have installed correctly${NC}"
 fi
 
 # Step 9: Check for GPU and install drivers if needed
@@ -160,7 +160,7 @@ echo -e "${YELLOW}Step 9: Checking for GPU support...${NC}"
 GPU_TYPE=$(ssh -i ${SSH_KEY} ${REMOTE_USER}@${REMOTE_HOST} "lspci 2>/dev/null | grep -E 'NVIDIA|AMD' | head -1")
 
 if echo "$GPU_TYPE" | grep -q "NVIDIA"; then
-    echo -e "${GREEN}✓ NVIDIA GPU detected${NC}"
+    echo -e "${GREEN}[OK] NVIDIA GPU detected${NC}"
     echo -e "${YELLOW}Note: You may need to install NVIDIA drivers manually on Amazon Linux 2023${NC}"
     echo "To install GPU drivers, SSH into the instance and run:"
     echo "  sudo dnf install -y kernel-modules-extra"

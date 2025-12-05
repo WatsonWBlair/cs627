@@ -33,7 +33,7 @@ fi
 GPU_FLAGS=""
 if command -v nvidia-smi &> /dev/null; then
     if nvidia-smi &> /dev/null; then
-        echo -e "${GREEN}✓ NVIDIA GPU detected and will be available${NC}"
+        echo -e "${GREEN}[OK] NVIDIA GPU detected and will be available${NC}"
         GPU_FLAGS="--gpus all"
     fi
 fi

@@ -10,12 +10,26 @@ Key Metrics:
 3. Semantic Fidelity - Cosine similarity between original and reconstructed vectors
 4. Combined Reconstruction Quality - Weighted average of BLEU and ROUGE
 
-Usage:
-    from src.Evaluation.decoder_metrics import evaluate_text_decoder
+Audio Metrics:
+1. Mel Cepstral Distortion (MCD) - Spectral similarity between audio waveforms
+2. Audio Semantic Fidelity - Cosine similarity after audio decode-encode cycle
 
+Usage:
+    from src.Evaluation.decoder_metrics import evaluate_text_decoder, evaluate_audio_decoder
+
+    # Text decoder evaluation
     metrics = evaluate_text_decoder(
         decoder=Vec_to_Text(),
         encoder=Text_to_Vec(),
+        test_texts=['example text', ...],
+        device='cuda'
+    )
+
+    # Audio decoder evaluation
+    audio_metrics = evaluate_audio_decoder(
+        decoder=Vec_to_Audio(),
+        text_encoder=Text_to_Vec(),
+        audio_encoder=Audio_to_Vec(),
         test_texts=['example text', ...],
         device='cuda'
     )
@@ -406,6 +420,299 @@ def save_decoder_metrics(
         json.dump(serializable_metrics, f, indent=2)
 
     print(f"[OK] Metrics saved to: {output_path}")
+
+
+# ============================================================================
+# AUDIO DECODER METRICS
+# ============================================================================
+
+def compute_mel_cepstral_distortion(
+    generated_audio: np.ndarray,
+    reference_audio: np.ndarray,
+    sample_rate: int = 16000,
+    n_mfcc: int = 13
+) -> float:
+    """
+    Compute Mel Cepstral Distortion (MCD) between audio waveforms.
+
+    MCD measures the spectral distance between two audio signals using
+    Mel-frequency cepstral coefficients. Lower is better.
+
+    Args:
+        generated_audio: Generated audio waveform (samples,)
+        reference_audio: Reference audio waveform (samples,)
+        sample_rate: Audio sample rate (default: 16000)
+        n_mfcc: Number of MFCCs to compute (default: 13)
+
+    Returns:
+        MCD value in dB (lower is better, 0 = identical)
+
+    Note:
+        - Typical values: 3-5 dB for good synthesis, >8 dB for poor synthesis
+        - Requires librosa for MFCC computation
+    """
+    try:
+        import librosa
+    except ImportError:
+        print("[WARNING] librosa not installed, MCD computation skipped")
+        return float('inf')
+
+    # Ensure same length (truncate to shorter)
+    min_len = min(len(generated_audio), len(reference_audio))
+    if min_len == 0:
+        return float('inf')
+
+    gen = generated_audio[:min_len]
+    ref = reference_audio[:min_len]
+
+    # Extract MFCCs
+    gen_mfcc = librosa.feature.mfcc(y=gen.astype(np.float32), sr=sample_rate, n_mfcc=n_mfcc)
+    ref_mfcc = librosa.feature.mfcc(y=ref.astype(np.float32), sr=sample_rate, n_mfcc=n_mfcc)
+
+    # Align lengths (DTW would be better but this is simpler)
+    min_frames = min(gen_mfcc.shape[1], ref_mfcc.shape[1])
+    if min_frames == 0:
+        return float('inf')
+
+    gen_mfcc = gen_mfcc[:, :min_frames]
+    ref_mfcc = ref_mfcc[:, :min_frames]
+
+    # Compute MCD (excluding 0th coefficient which is energy)
+    # MCD = (10 / ln(10)) * sqrt(2 * sum((gen_mfcc - ref_mfcc)^2))
+    # Simplified: MCD = sqrt(sum((gen_mfcc - ref_mfcc)^2))
+    diff = gen_mfcc[1:, :] - ref_mfcc[1:, :]  # Exclude 0th coefficient
+    mcd = np.mean(np.sqrt(2 * np.sum(diff ** 2, axis=0)))
+
+    # Convert to dB scale
+    mcd_db = (10.0 / np.log(10)) * mcd
+
+    return float(mcd_db)
+
+
+def compute_audio_semantic_fidelity(
+    original_vectors: torch.Tensor,
+    decoder,
+    audio_encoder,
+    device: str = 'cuda'
+) -> Dict[str, float]:
+    """
+    Measure semantic drift for audio decoder via encode-decode-encode cycle.
+
+    Flow:
+    1. semantic_vec -> audio decoder -> audio waveform
+    2. audio waveform -> audio encoder -> reconstructed semantic vector
+    3. Compare original and reconstructed vectors via cosine similarity
+
+    Args:
+        original_vectors: (N, 1024) original semantic vectors
+        decoder: Vec_to_Audio decoder
+        audio_encoder: Audio_to_Vec encoder
+        device: 'cuda' or 'cpu'
+
+    Returns:
+        Dict with semantic fidelity metrics
+    """
+    decoder.eval()
+    audio_encoder.eval()
+
+    similarities = []
+
+    with torch.no_grad():
+        for i in range(original_vectors.shape[0]):
+            try:
+                # Generate audio
+                audio = decoder(original_vectors[i:i+1].to(device), device=device)
+
+                # Re-encode audio
+                reconstructed_vec = audio_encoder(audio, device=device)
+
+                # Compute cosine similarity
+                orig_norm = F.normalize(original_vectors[i:i+1].to(device), dim=1)
+                recon_norm = F.normalize(reconstructed_vec, dim=1)
+                sim = F.cosine_similarity(orig_norm, recon_norm, dim=1)
+                similarities.append(sim.item())
+
+            except Exception as e:
+                print(f"[WARNING] Audio semantic fidelity failed for sample {i}: {e}")
+                similarities.append(0.0)
+
+    similarities = np.array(similarities)
+
+    return {
+        'mean_similarity': float(np.mean(similarities)),
+        'std_similarity': float(np.std(similarities)),
+        'min_similarity': float(np.min(similarities)),
+        'max_similarity': float(np.max(similarities)),
+        'median_similarity': float(np.median(similarities))
+    }
+
+
+def evaluate_audio_decoder(
+    decoder,
+    text_encoder,
+    audio_encoder,
+    test_texts: List[str],
+    reference_audios: Optional[List[np.ndarray]] = None,
+    device: str = 'cuda',
+    verbose: bool = True
+) -> Dict[str, any]:
+    """
+    Comprehensive evaluation of audio decoder (Vec_to_Audio).
+
+    Evaluation pipeline:
+    1. Encode test texts to semantic vectors (text encoder frozen)
+    2. Decode vectors to audio (audio decoder)
+    3. Re-encode generated audio to vectors (audio encoder frozen)
+    4. Compute semantic fidelity and optionally MCD
+
+    Args:
+        decoder: Vec_to_Audio decoder module
+        text_encoder: Text_to_Vec encoder module (frozen)
+        audio_encoder: Audio_to_Vec encoder module (frozen)
+        test_texts: List of test text samples to generate audio for
+        reference_audios: Optional list of reference audio waveforms for MCD
+        device: 'cuda' or 'cpu'
+        verbose: Print progress messages
+
+    Returns:
+        Dict with all computed metrics
+
+    Example:
+        >>> from src.Encoders import Text_to_Vec, Audio_to_Vec
+        >>> from src.Decoders import Vec_to_Audio
+        >>>
+        >>> decoder = Vec_to_Audio()
+        >>> text_encoder = Text_to_Vec()
+        >>> audio_encoder = Audio_to_Vec()
+        >>> test_texts = ["hello world", "how are you", ...]
+        >>>
+        >>> metrics = evaluate_audio_decoder(decoder, text_encoder, audio_encoder, test_texts)
+        >>> print(f"Semantic fidelity: {metrics['semantic_fidelity']['mean_similarity']:.3f}")
+    """
+    if verbose:
+        print("=" * 80)
+        print("AUDIO DECODER EVALUATION")
+        print("=" * 80)
+        print(f"Test samples: {len(test_texts)}")
+        print(f"Device: {device}")
+        print()
+
+    decoder.eval()
+    text_encoder.eval()
+    audio_encoder.eval()
+
+    generated_audios = []
+    all_semantic_vecs = []
+
+    if verbose:
+        print("[1/3] Encoding texts and generating audio...")
+        from tqdm import tqdm
+        iterator = tqdm(enumerate(test_texts), total=len(test_texts), desc="Generating audio")
+    else:
+        iterator = enumerate(test_texts)
+
+    with torch.no_grad():
+        for i, text in iterator:
+            try:
+                # Encode text to semantic vector
+                semantic_vec = text_encoder([text], device=device)
+                all_semantic_vecs.append(semantic_vec)
+
+                # Generate audio
+                audio = decoder(semantic_vec, device=device)
+                generated_audios.append(audio)
+
+            except Exception as e:
+                print(f"[WARNING] Audio generation failed for sample {i}: {e}")
+                all_semantic_vecs.append(torch.zeros(1, 1024, device=device))
+                generated_audios.append(np.zeros(16000, dtype=np.float32))
+
+    # Stack semantic vectors
+    all_semantic_vecs = torch.cat(all_semantic_vecs, dim=0)
+
+    if verbose:
+        print()
+        print("[2/3] Computing semantic fidelity...")
+
+    # Compute semantic fidelity
+    semantic_fidelity = compute_audio_semantic_fidelity(
+        all_semantic_vecs, decoder, audio_encoder, device
+    )
+
+    # Compute MCD if reference audios provided
+    mcd_scores = None
+    if reference_audios is not None and len(reference_audios) == len(generated_audios):
+        if verbose:
+            print("[3/3] Computing Mel Cepstral Distortion...")
+
+        mcd_values = []
+        for gen, ref in zip(generated_audios, reference_audios):
+            mcd = compute_mel_cepstral_distortion(gen, ref)
+            mcd_values.append(mcd)
+
+        mcd_scores = {
+            'mean_mcd': float(np.mean(mcd_values)),
+            'std_mcd': float(np.std(mcd_values)),
+            'min_mcd': float(np.min(mcd_values)),
+            'max_mcd': float(np.max(mcd_values))
+        }
+    else:
+        if verbose:
+            print("[3/3] Skipping MCD (no reference audio provided)")
+
+    if verbose:
+        print()
+        print("Evaluation complete!")
+        print()
+
+    return {
+        'semantic_fidelity': semantic_fidelity,
+        'mcd': mcd_scores,
+        'num_samples': len(test_texts),
+        'generated_audios': generated_audios  # For qualitative inspection
+    }
+
+
+def print_audio_decoder_metrics_summary(metrics: Dict[str, any]):
+    """
+    Pretty-print audio decoder evaluation metrics.
+
+    Args:
+        metrics: Output from evaluate_audio_decoder()
+    """
+    print("=" * 80)
+    print("AUDIO DECODER EVALUATION SUMMARY")
+    print("=" * 80)
+    print()
+
+    # Semantic fidelity
+    print("SEMANTIC FIDELITY (Cosine Similarity)")
+    print("-" * 80)
+    fidelity = metrics['semantic_fidelity']
+    print(f"  Mean:            {fidelity['mean_similarity']:.3f}")
+    print(f"  Median:          {fidelity['median_similarity']:.3f}")
+    print(f"  Std Dev:         {fidelity['std_similarity']:.3f}")
+    print(f"  Min:             {fidelity['min_similarity']:.3f}")
+    print(f"  Max:             {fidelity['max_similarity']:.3f}")
+    print()
+
+    # MCD if available
+    if metrics.get('mcd') is not None:
+        print("MEL CEPSTRAL DISTORTION (dB, lower is better)")
+        print("-" * 80)
+        mcd = metrics['mcd']
+        print(f"  Mean MCD:        {mcd['mean_mcd']:.2f} dB")
+        print(f"  Std MCD:         {mcd['std_mcd']:.2f} dB")
+        print(f"  Min MCD:         {mcd['min_mcd']:.2f} dB")
+        print(f"  Max MCD:         {mcd['max_mcd']:.2f} dB")
+        print()
+    else:
+        print("MEL CEPSTRAL DISTORTION: Not computed (no reference audio)")
+        print()
+
+    print(f"Total samples evaluated: {metrics['num_samples']}")
+    print()
+    print("=" * 80)
 
 
 if __name__ == "__main__":

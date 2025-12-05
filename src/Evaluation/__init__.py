@@ -18,7 +18,7 @@ Usage:
     results = evaluator.evaluate(dataset)
 """
 
-from .metrics import (
+from .encoder_metrics import (
     compute_recall_at_k,
     compute_cosine_similarity_matrix,
     compute_alignment_quality,
