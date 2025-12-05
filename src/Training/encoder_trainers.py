@@ -406,4 +406,157 @@ class Contrast(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
+# Standalone building blocks for custom training loops
+
+class ContrastiveLoss(nn.Module):
+    """
+    Standalone InfoNCE contrastive loss function.
+
+    For use in custom training loops outside of HuggingFace Trainer.
+
+    Args:
+        temperature: Temperature parameter for softmax scaling (default: 0.07)
+
+    Example:
+        >>> criterion = ContrastiveLoss(temperature=0.07)
+        >>> loss = criterion(anchor_emb, positive_emb, negative_emb)
+    """
+
+    def __init__(self, temperature: float = 0.07):
+        super().__init__()
+        self.temperature = temperature
+
+    def forward(
+        self,
+        anchor: torch.Tensor,
+        positive: torch.Tensor,
+        negative: torch.Tensor = None
+    ) -> torch.Tensor:
+        """
+        Compute InfoNCE contrastive loss.
+
+        Args:
+            anchor: Anchor embeddings (batch_size x embed_dim)
+            positive: Positive embeddings (batch_size x embed_dim)
+            negative: Optional negative embeddings (batch_size x embed_dim or num_neg x embed_dim)
+
+        Returns:
+            Loss value (scalar)
+        """
+        # Normalize embeddings
+        anchor = F.normalize(anchor, dim=1)
+        positive = F.normalize(positive, dim=1)
+
+        # Positive similarity (batch_size,)
+        pos_sim = torch.sum(anchor * positive, dim=1, keepdim=True)
+
+        if negative is not None:
+            negative = F.normalize(negative, dim=1)
+            # Negative similarity
+            if negative.shape[0] == anchor.shape[0]:
+                # Same batch size - compute pairwise
+                neg_sim = torch.sum(anchor * negative, dim=1, keepdim=True)
+            else:
+                # Different sizes - compute all pairs
+                neg_sim = torch.mm(anchor, negative.T)
+
+            # Concatenate and apply temperature
+            logits = torch.cat([pos_sim, neg_sim], dim=1) / self.temperature
+        else:
+            logits = pos_sim / self.temperature
+
+        # Labels: positive is always index 0
+        labels = torch.zeros(logits.shape[0], dtype=torch.long, device=logits.device)
+
+        return F.cross_entropy(logits, labels)
+
+
+class MomentumEncoder(nn.Module):
+    """
+    Momentum encoder wrapper for stable feature extraction.
+
+    Maintains an exponential moving average of encoder parameters
+    for more stable representations in contrastive learning.
+
+    Args:
+        encoder: Base encoder to wrap
+        momentum: EMA momentum coefficient (default: 0.999)
+        queue_size: Size of negative sample queue (default: 65536)
+
+    Example:
+        >>> encoder = Text_to_Vec()
+        >>> mom_encoder = MomentumEncoder(encoder, momentum=0.999)
+        >>> features = mom_encoder(input_text)
+        >>> mom_encoder.update()  # Call after each training step
+    """
+
+    def __init__(
+        self,
+        encoder: nn.Module,
+        momentum: float = 0.999,
+        queue_size: int = 65536
+    ):
+        super().__init__()
+        self.encoder = encoder
+        self.momentum = momentum
+        self.queue_size = queue_size
+
+        # Create momentum encoder (deep copy with frozen parameters)
+        self.momentum_encoder = copy.deepcopy(encoder)
+        for param in self.momentum_encoder.parameters():
+            param.requires_grad = False
+
+        # Initialize feature queue
+        embed_dim = 1024  # Standard semantic vector dimension
+        self.register_buffer('queue', F.normalize(torch.randn(queue_size, embed_dim), dim=1))
+        self.register_buffer('queue_ptr', torch.zeros(1, dtype=torch.long))
+
+    def forward(self, x, device=None) -> torch.Tensor:
+        """
+        Encode input using momentum encoder.
+
+        Args:
+            x: Input data
+            device: Optional device specification
+
+        Returns:
+            Normalized embeddings
+        """
+        with torch.no_grad():
+            if device is not None:
+                features = self.momentum_encoder(x, device=device)
+            else:
+                features = self.momentum_encoder(x)
+            return F.normalize(features, dim=1)
+
+    @torch.no_grad()
+    def update(self):
+        """Update momentum encoder parameters using EMA."""
+        for param_q, param_k in zip(
+            self.encoder.parameters(),
+            self.momentum_encoder.parameters()
+        ):
+            param_k.data = param_k.data * self.momentum + param_q.data * (1.0 - self.momentum)
+
+    @torch.no_grad()
+    def enqueue(self, keys: torch.Tensor):
+        """Add features to the queue (FIFO)."""
+        batch_size = keys.shape[0]
+        ptr = int(self.queue_ptr)
+
+        # Handle wrapping
+        if ptr + batch_size > self.queue_size:
+            remaining = self.queue_size - ptr
+            self.queue[ptr:] = keys[:remaining]
+            self.queue[:batch_size - remaining] = keys[remaining:]
+        else:
+            self.queue[ptr:ptr + batch_size] = keys
+
+        self.queue_ptr[0] = (ptr + batch_size) % self.queue_size
+
+    def get_queue(self) -> torch.Tensor:
+        """Get current queue contents."""
+        return self.queue.clone()
+
+
 # Add additional training paradigms below:

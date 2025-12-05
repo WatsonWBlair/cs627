@@ -13,6 +13,8 @@ class Tone_to_Vec(torch.nn.Module):
     """
     Audio tone/prosody encoder using WavLM encoder + MLP Adapter.
 
+    Status: PRODUCTION
+
     Specialized for emotional tone, prosody, and speaking style detection.
     Uses WavLM (optimized for tone) instead of Whisper (optimized for ASR).
 
