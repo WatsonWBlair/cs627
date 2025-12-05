@@ -106,6 +106,8 @@ REPORT_DIR = os.getenv('REPORT_DIR', 'training_reports/decoders/')
 
 def main():
     """Main training function."""
+    global TRAIN_TEXT, TRAIN_AUDIO, TRAIN_IMAGE
+
     print("=" * 80)
     print("UNIFIED CROSS-MODAL DECODER TRAINING")
     print("=" * 80)
