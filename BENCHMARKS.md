@@ -1,6 +1,8 @@
-# Comprehensive Benchmarks Documentation
+# Benchmarks Documentation
 
-This document provides detailed information about all evaluation metrics, benchmark datasets, and interpretation guidelines for the Semantic-Vector Space architecture.
+Detailed information about benchmark datasets, evaluation metrics, and interpretation guidelines.
+
+**Related**: See [EVALUATION.md](EVALUATION.md) for evaluation philosophy and methodology.
 
 ## Table of Contents
 

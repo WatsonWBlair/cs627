@@ -1,6 +1,8 @@
 # Evaluation Guide
 
-This document provides guidelines for evaluating encoders, decoders, and the overall Semantic-Vector Space architecture.
+Guidelines for evaluating encoders, decoders, and the Semantic-Vector Space architecture.
+
+**Related**: See [BENCHMARKS.md](BENCHMARKS.md) for detailed dataset info and benchmark running instructions.
 
 ## Evaluation Philosophy
 

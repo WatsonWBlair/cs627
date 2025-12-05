@@ -2,7 +2,7 @@
 
 CS627 AI Research Project examining the impact of a shared **Semantic-Vector Space (SVS)** on Natural Language Understanding (NLU) tasks.
 
-## 🏆 Performance Highlights
+## Performance Highlights
 
 | Metric | Our Model | SOTA Baseline | Improvement |
 |--------|-----------|---------------|-------------|
@@ -27,7 +27,7 @@ This project implements an encoder-decoder architecture that aligns multiple mod
 
 ## Quick Start
 
-### Docker Setup (Recommended) 🐳
+### Docker Setup (Recommended)
 
 ```bash
 # Pull and run with GPU support
@@ -63,7 +63,7 @@ python scripts/data_wrangling/extract_test_segments.py
 python src/Training/train_encoders.py
 ```
 
-See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
+See [Training README](src/Training/README.md) for detailed instructions.
 
 ### Cloud GPU Setup
 
@@ -90,7 +90,7 @@ aws ec2 run-instances \
 
 Training time: ~3-4 hours for full encoder suite on A10G GPU.
 
-See [CLOUD_SETUP.md](CLOUD_SETUP.md) for detailed AWS/GCP/Azure configurations.
+See [AWS_SETUP.md](AWS_SETUP.md) for detailed AWS configuration.
 
 ### 3. Use Trained Encoders
 
@@ -140,7 +140,7 @@ Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
 **Current Decoders** (organized by modality):
 - **Text** (`text/`): `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_to_semantic.py` (PRODUCTION)
 - **Image** (`image/`): `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_to_visual.py` (EXPERIMENTAL)
-- **Audio** (`audio/`): `Vec_to_Audio` - Adapter + `suno/bark-small` → `vec_to_waveform.py` (EXPERIMENTAL)
+- **Audio** (`audio/`): `Vec_to_Audio` - Adapter + `microsoft/speecht5_tts` → `vec_to_waveform.py` (EXPERIMENTAL)
 
 Import: `from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image`
 
@@ -187,8 +187,7 @@ cs627/
 │   │   ├── train_encoders.py   # Main training script (raw data)
 │   │   ├── Data_Wrangling/
 │   │   │   └── mosi_dataset.py     # CMU-MOSI dataset loader
-│   │   ├── README.md          # Training documentation
-│   │   └── QUICKSTART.md      # Quick start guide
+│   │   └── README.md          # Training documentation
 │   ├── Inference/             # Inference applications
 │   │   ├── Chatbot/           # Seq2seq chatbot in semantic space
 │   │   └── Summarization/     # Text summarization
@@ -217,7 +216,7 @@ cs627/
 └── README.md                  # This file
 ```
 
-## 📊 Benchmark Results
+## Benchmark Results
 
 ### Cross-Modal Retrieval Performance
 ![Cross-Modal Retrieval](figures/retrieval_confusion.png)
@@ -251,17 +250,18 @@ Our architecture demonstrates strong performance on MultiBench multimodal fusion
 | MOSI Sentiment | MAE | 0.72 | 0.89 |
 | Cross-Modal Fusion | Accuracy | 85.3% | 78.1% |
 
-## 📚 Documentation
+## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)**: Comprehensive project guide (architecture, setup, workflows)
-- **[BENCHMARKS.md](BENCHMARKS.md)**: Detailed evaluation metrics and interpretation guide
-- **[CLOUD_DEPLOYMENT.md](CLOUD_DEPLOYMENT.md)**: Cloud GPU deployment guide (AWS, GCP, Azure)
-- **[src/Encoders/README.md](src/Encoders/README.md)**: How to create and train encoders
-- **[src/Decoders/README.md](src/Decoders/README.md)**: How to create and train decoders
-- **[src/Training/README.md](src/Training/README.md)**: Training methodology and best practices
-- **[src/Training/QUICKSTART.md](src/Training/QUICKSTART.md)**: Quick start for training
+- **[CLAUDE.md](CLAUDE.md)**: Project guide for Claude Code
+- **[AWS_SETUP.md](AWS_SETUP.md)**: Cloud GPU deployment guide
+- **[BENCHMARKS.md](BENCHMARKS.md)**: Evaluation metrics and interpretation
+- **[DOCKER.md](DOCKER.md)**: Container setup guide
+- **[EVALUATION.md](EVALUATION.md)**: Evaluation methodology
+- **[src/Encoders/README.md](src/Encoders/README.md)**: Encoder guide
+- **[src/Decoders/README.md](src/Decoders/README.md)**: Decoder guide
+- **[src/Training/README.md](src/Training/README.md)**: Training guide
 
-## 🗂️ Datasets
+## Datasets
 
 ### Training Data
 - **CMU-MOSI**: 2,199 multimodal opinion segments
@@ -276,18 +276,15 @@ Our architecture demonstrates strong performance on MultiBench multimodal fusion
 
 See [BENCHMARKS.md](BENCHMARKS.md) for detailed dataset descriptions.
 
-## 🔑 Key Features
+## Key Features
 
-✅ **Modular architecture**: Encoders, inference, and decoders are independent
-✅ **100x training efficiency**: Only train small MLP adapters, not full models
-✅ **Cross-modal alignment**: Text ↔ Audio ↔ Video share semantic space
-✅ **Momentum contrastive learning**: Stable training with InfoNCE loss
-✅ **Benchmark integration**: Train on MTEB + GLUE for improved generalization
-✅ **Backtranslation**: Synthesize training data for unsupervised alignment
-✅ **Extensible**: Easy to add new modalities (depth, radar, etc.)
-✅ **Automated testing**: Smoke tests and CI/CD via GitHub Actions
-✅ **Comprehensive evaluation**: MTEB, GLUE, and cross-modal metrics
-✅ **Lazy loading**: Efficient memory usage for large video datasets
+- **Modular architecture**: Encoders, inference, and decoders are independent
+- **100x training efficiency**: Only train small MLP adapters, not full models
+- **Cross-modal alignment**: Text, Audio, Video share semantic space
+- **Momentum contrastive learning**: Stable training with InfoNCE loss
+- **Benchmark integration**: Train on MTEB + GLUE for improved generalization
+- **Extensible**: Easy to add new modalities
+- **Automated testing**: Smoke tests and CI/CD via GitHub Actions
 
 ## Testing and Quality Assurance
 

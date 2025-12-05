@@ -2,7 +2,7 @@
 
 This directory contains production-ready scripts for the CS627 Semantic-Vector Space project.
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 scripts/
@@ -28,7 +28,7 @@ scripts/
         └── mosi_frame_extractor.py # Video frame extraction helper
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Data Preparation
 ```bash
@@ -62,7 +62,7 @@ bash scripts/setup_remote_instance.sh user@remote-host
 bash scripts/cloud/setup_and_train.sh
 ```
 
-## 📊 Script Descriptions
+## Script Descriptions
 
 ### Evaluation Scripts
 
@@ -112,7 +112,7 @@ Automated setup for cloud GPU instances (AWS, GCP, Azure, Lambda Labs).
 #### `cloud/` Directory
 Contains additional cloud deployment utilities and documentation.
 
-## 🧹 Recent Cleanup
+## Recent Cleanup
 
 A comprehensive cleanup was performed on December 4, 2024:
 - Removed 5 redundant test scripts
@@ -120,14 +120,14 @@ A comprehensive cleanup was performed on December 4, 2024:
 - Organized all scripts by function
 - Improved documentation and naming consistency
 
-## 📝 Notes
+## Notes
 
 - All scripts include comprehensive docstrings and usage examples
 - Test and validation scripts have been moved to `tests/` directory
 - Production scripts only - no development/debug scripts
 - Follow naming convention: `{action}_{target}.py`
 
-## 🔗 Related Documentation
+## Related Documentation
 
 - [Training Guide](../src/Training/README.md)
 - [Evaluation Guide](../src/Evaluation/README.md)
