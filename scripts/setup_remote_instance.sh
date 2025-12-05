@@ -23,9 +23,23 @@
 #       additional driver installation and reboots may be required.
 
 # Configuration
-REMOTE_USER="ubuntu"
 REMOTE_HOST="$1"
 REMOTE_PATH="~/cs627"
+
+# Auto-detect the correct user for the instance
+# Try ubuntu first (for Ubuntu AMIs), then ec2-user (for Amazon Linux)
+echo "Detecting remote user..."
+if ssh -i ~/.ssh/SHARD_Training.pem -o ConnectTimeout=5 -o StrictHostKeyChecking=no ubuntu@${REMOTE_HOST} "echo 'ubuntu'" 2>/dev/null; then
+    REMOTE_USER="ubuntu"
+    echo "Using user: ubuntu"
+elif ssh -i ~/.ssh/SHARD_Training.pem -o ConnectTimeout=5 -o StrictHostKeyChecking=no ec2-user@${REMOTE_HOST} "echo 'ec2-user'" 2>/dev/null; then
+    REMOTE_USER="ec2-user"
+    echo "Using user: ec2-user"
+else
+    echo -e "${RED}Error: Could not connect with ubuntu or ec2-user${NC}"
+    echo "Please check your instance and SSH key"
+    exit 1
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -45,7 +59,7 @@ echo -e "${GREEN}Setting up remote instance at ${REMOTE_USER}@${REMOTE_HOST}${NC
 
 # Step 1: Create directory structure on remote
 echo -e "${YELLOW}Step 1: Creating directory structure on remote...${NC}"
-ssh ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}/{data/cmumosi,src,scripts,OptimalWeights,tests}"
+ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}/{data/cmumosi,src,scripts,OptimalWeights,tests}"
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Directory structure created${NC}"
 else
@@ -55,7 +69,7 @@ fi
 
 # Step 2: Sync source code
 echo -e "${YELLOW}Step 2: Syncing source code...${NC}"
-rsync -avz --progress \
+rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
     --exclude '.git' \
@@ -71,7 +85,7 @@ fi
 
 # Step 3: Sync scripts
 echo -e "${YELLOW}Step 3: Syncing scripts...${NC}"
-rsync -avz --progress \
+rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
     scripts/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/scripts/
@@ -84,7 +98,7 @@ fi
 
 # Step 4: Sync tests
 echo -e "${YELLOW}Step 4: Syncing tests...${NC}"
-rsync -avz --progress \
+rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
     tests/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/tests/
@@ -97,7 +111,7 @@ fi
 
 # Step 5: Sync requirements and config files
 echo -e "${YELLOW}Step 5: Syncing requirements and config files...${NC}"
-rsync -avz --progress \
+rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" \
     requirements.txt \
     CLAUDE.md \
     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/
@@ -111,7 +125,7 @@ fi
 # Step 6: Sync MOSI data (if it exists locally)
 if [ -d "data/cmumosi" ]; then
     echo -e "${YELLOW}Step 6: Syncing MOSI dataset (this may take a while)...${NC}"
-    rsync -avz --progress data/cmumosi/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/data/cmumosi/
+    rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" data/cmumosi/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/data/cmumosi/
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ MOSI data synced${NC}"
     else
@@ -125,7 +139,7 @@ fi
 # Step 7: Sync OptimalWeights (if any .pth files exist)
 if ls OptimalWeights/*.pth 1> /dev/null 2>&1; then
     echo -e "${YELLOW}Step 7: Syncing model weights...${NC}"
-    rsync -avz --progress OptimalWeights/*.pth ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/OptimalWeights/
+    rsync -avz --progress -e "ssh -i ~/.ssh/SHARD_Training.pem" OptimalWeights/*.pth ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/OptimalWeights/
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Model weights synced${NC}"
     else
@@ -138,12 +152,12 @@ fi
 
 # Step 8: Clean up disk space and prepare Python environment
 echo -e "${YELLOW}Step 8: Cleaning up disk space...${NC}"
-ssh ${REMOTE_USER}@${REMOTE_HOST} "sudo apt clean 2>/dev/null || true"
+ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "sudo apt clean 2>/dev/null || true"
 echo -e "${GREEN}✓ Disk space cleaned${NC}"
 
 # Step 9: Install Python venv package if needed
 echo -e "${YELLOW}Step 9: Checking Python virtual environment support...${NC}"
-ssh ${REMOTE_USER}@${REMOTE_HOST} "python3 -m venv --help > /dev/null 2>&1 || sudo apt install -y python3-venv"
+ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "python3 -m venv --help > /dev/null 2>&1 || sudo apt install -y python3-venv 2>/dev/null || sudo yum install -y python3-virtualenv 2>/dev/null"
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Python venv support available${NC}"
 else
@@ -153,12 +167,12 @@ fi
 
 # Step 10: Detect and install GPU drivers if needed
 echo -e "${YELLOW}Step 10: Checking for GPU support...${NC}"
-GPU_TYPE=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "lspci 2>/dev/null | grep -E 'NVIDIA|AMD' | head -1")
+GPU_TYPE=$(ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "lspci 2>/dev/null | grep -E 'NVIDIA|AMD' | head -1")
 
 if echo "$GPU_TYPE" | grep -q "NVIDIA"; then
     echo -e "${GREEN}✓ NVIDIA GPU detected${NC}"
     echo -e "${YELLOW}Installing NVIDIA drivers and CUDA toolkit...${NC}"
-    ssh ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
+    ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
 # Check if nvidia-smi already works
 if ! nvidia-smi &> /dev/null; then
     echo "Installing NVIDIA drivers..."
@@ -189,7 +203,7 @@ else
 fi
 
 # Step 11: Check if reboot is needed for GPU drivers
-if ssh ${REMOTE_USER}@${REMOTE_HOST} "test -f /tmp/needs_gpu_reboot"; then
+if ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "test -f /tmp/needs_gpu_reboot"; then
     echo -e "${RED}GPU drivers require reboot. Please run:${NC}"
     echo -e "${YELLOW}ssh ${REMOTE_USER}@${REMOTE_HOST} 'sudo reboot'${NC}"
     echo -e "Then re-run this script after the instance restarts."
@@ -200,11 +214,11 @@ fi
 echo -e "${YELLOW}Step 12: Setting up Python environment...${NC}"
 
 # Check if Deep Learning AMI (has conda)
-IS_DL_AMI=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "which conda 2>/dev/null && echo 'true' || echo 'false'")
+IS_DL_AMI=$(ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} "which conda 2>/dev/null && echo 'true' || echo 'false'")
 
 if [ "$IS_DL_AMI" = "true" ]; then
     echo -e "${GREEN}✓ Deep Learning AMI detected - using pre-configured environment${NC}"
-    ssh ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
+    ssh -i ~/.ssh/SHARD_Training.pem ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
 cd ~/cs627
 
 # Deep Learning AMI: Use existing PyTorch environment

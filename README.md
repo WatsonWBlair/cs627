@@ -27,6 +27,24 @@ This project implements an encoder-decoder architecture that aligns multiple mod
 
 ## Quick Start
 
+### Docker Setup (Recommended) 🐳
+
+```bash
+# Pull and run with GPU support
+docker pull watsonblair/cs627-svs:latest
+docker run --gpus all -v ./data:/workspace/data watsonblair/cs627-svs:latest
+
+# Or use helper scripts
+./docker/train.sh      # Auto-detects GPU and runs training
+./docker/dev.sh        # Launches Jupyter Lab on http://localhost:8888
+
+# CPU-only version
+docker pull watsonblair/cs627-svs:cpu
+docker run -v ./data:/workspace/data watsonblair/cs627-svs:cpu
+```
+
+See [Docker Documentation](DOCKER.md) for detailed container usage.
+
 ### Local Setup
 
 ```bash
@@ -47,7 +65,7 @@ python src/Training/train_encoders.py
 
 See [Training Quick Start](src/Training/QUICKSTART.md) for detailed instructions.
 
-### Cloud GPU Setup (Recommended)
+### Cloud GPU Setup
 
 For production training, we recommend AWS EC2 with Deep Learning AMIs:
 

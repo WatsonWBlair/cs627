@@ -1,0 +1,110 @@
+# CS627 Semantic-Vector Space Training Docker Image (CPU-only)
+# MIT License - For educational and research use
+# Author: Watson Blair
+
+FROM python:3.10-slim
+
+# Metadata
+LABEL maintainer="Watson Blair"
+LABEL description="CS627 Semantic-Vector Space multimodal training environment (CPU-only)"
+LABEL license="MIT"
+LABEL version="1.0.0"
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    build-essential \
+    libsndfile1 \
+    ffmpeg \
+    libgomp1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt /workspace/
+
+# Create temporary requirements for CPU-only installation
+RUN sed 's/torch>=2.0.0,<3.0/torch>=2.0.0,<3.0 --index-url https:\/\/download.pytorch.org\/whl\/cpu/' requirements.txt > requirements-cpu.txt
+
+# Install Python dependencies (CPU versions)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir transformers diffusers datasets accelerate evaluate sentence-transformers && \
+    pip install --no-cache-dir mteb rouge-score nltk scipy scikit-learn && \
+    pip install --no-cache-dir librosa soundfile Pillow opencv-python-headless && \
+    pip install --no-cache-dir h5py pandas numpy tqdm validators matplotlib python-dotenv && \
+    pip install --no-cache-dir yt-dlp
+
+# Install CMU-MultimodalSDK
+RUN git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git /tmp/CMU-MultimodalSDK && \
+    cd /tmp/CMU-MultimodalSDK && \
+    pip install --no-cache-dir . && \
+    rm -rf /tmp/CMU-MultimodalSDK
+
+# Copy source code
+COPY src/ /workspace/src/
+COPY scripts/ /workspace/scripts/
+COPY tests/ /workspace/tests/
+COPY tools/ /workspace/tools/
+
+# Copy documentation and license
+COPY LICENSE /workspace/
+COPY CLAUDE.md /workspace/
+COPY README.md /workspace/
+COPY *.md /workspace/
+
+# Create necessary directories
+RUN mkdir -p /workspace/data/cmumosi/{mosi,audio,frames,videos} \
+             /workspace/OptimalWeights \
+             /workspace/CandidateWeights \
+             /workspace/DecoderCheckpoints \
+             /workspace/training_reports
+
+# Set Python path
+ENV PYTHONPATH=/workspace:$PYTHONPATH
+
+# Environment variables for training configuration
+ENV DEVICE=cpu \
+    BATCH_SIZE=16 \
+    LEARNING_RATE=0.0001 \
+    EPOCHS=30 \
+    MOMENTUM=0.999 \
+    QUEUE_SIZE=2048 \
+    TEMPERATURE=0.07 \
+    SEMANTIC_DIM=1024
+
+# Data paths
+ENV MOSI_DATA_PATH=/workspace/data/cmumosi/mosi/ \
+    AUDIO_DIR=/workspace/data/cmumosi/audio/ \
+    VIDEO_DIR=/workspace/data/cmumosi/frames/ \
+    OPTIMAL_WEIGHTS_DIR=/workspace/OptimalWeights \
+    CANDIDATE_WEIGHTS_DIR=/workspace/CandidateWeights
+
+# Note: Reduced batch size and queue size for CPU to manage memory
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import torch; print(f'CPU mode: {not torch.cuda.is_available()}')" || exit 1
+
+# Default command - show info and usage instructions
+CMD ["bash", "-c", "echo '=== CS627 Semantic-Vector Space Training Environment (CPU) ===' && \
+     echo 'MIT Licensed for Educational and Research Use' && \
+     echo '' && \
+     python -c 'import torch; print(f\"PyTorch: {torch.__version__}\"); print(\"Running in CPU-only mode\")' && \
+     echo '' && \
+     echo 'Usage:' && \
+     echo '  Training: python src/Training/train_encoders.py' && \
+     echo '  Testing: python -m pytest tests/' && \
+     echo '' && \
+     echo 'Note: CPU mode uses reduced batch size (16) for memory efficiency' && \
+     echo '' && \
+     echo 'Mount points:' && \
+     echo '  /workspace/data - Training data' && \
+     echo '  /workspace/OptimalWeights - Model weights' && \
+     echo '' && \
+     /bin/bash"]

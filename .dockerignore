@@ -1,0 +1,83 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Data files (mount as volumes instead)
+data/cmumosi/videos/*.mp4
+data/cmumosi/frames/*.jpg
+data/cmumosi/audio/*.wav
+*.h5
+*.hdf5
+
+# Model weights (mount as volumes for persistence)
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+CandidateWeights/
+training_reports/*.png
+training_reports/*.json
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation builds
+docs/_build/
+site/
+
+# Logs
+*.log
+logs/
+
+# Environment files with secrets
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# CMU-MultimodalSDK (will be cloned during build)
+CMU-MultimodalSDK/
+
+# AWS/Cloud
+*.pem
+.aws/
+.gcp/
+.azure/
+
+# Docker
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore.local

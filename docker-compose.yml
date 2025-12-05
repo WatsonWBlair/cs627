@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  # GPU Training Service
+  train-gpu:
+    image: watsonblair/cs627-svs:gpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs627-train-gpu
+    environment:
+      - DEVICE=cuda
+      - BATCH_SIZE=${BATCH_SIZE:-32}
+      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
+      - EPOCHS=${EPOCHS:-30}
+      - INSTANCE_ID=${HOSTNAME:-docker}
+    volumes:
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./CandidateWeights:/workspace/CandidateWeights
+      - ./training_reports:/workspace/training_reports
+      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python src/Training/train_encoders.py
+    restart: unless-stopped
+
+  # CPU Training Service (for testing/development)
+  train-cpu:
+    image: watsonblair/cs627-svs:cpu
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: cs627-train-cpu
+    environment:
+      - DEVICE=cpu
+      - BATCH_SIZE=${BATCH_SIZE:-16}
+      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
+      - EPOCHS=${EPOCHS:-30}
+      - INSTANCE_ID=${HOSTNAME:-docker-cpu}
+    volumes:
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./CandidateWeights:/workspace/CandidateWeights
+      - ./training_reports:/workspace/training_reports
+      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+    command: python src/Training/train_encoders.py
+    restart: unless-stopped
+
+  # Development Service with Jupyter Lab
+  dev:
+    image: watsonblair/cs627-svs:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cs627-dev
+    environment:
+      - DEVICE=${DEVICE:-cuda}
+      - JUPYTER_ENABLE_LAB=yes
+    volumes:
+      - .:/workspace
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./CandidateWeights:/workspace/CandidateWeights
+      - ./training_reports:/workspace/training_reports
+    ports:
+      - "8888:8888"  # Jupyter Lab
+      - "6006:6006"  # TensorBoard
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # Evaluation Service
+  evaluate:
+    image: watsonblair/cs627-svs:gpu
+    container_name: cs627-evaluate
+    environment:
+      - DEVICE=${DEVICE:-cuda}
+    volumes:
+      - ./data:/workspace/data
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./training_reports:/workspace/training_reports
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python scripts/run_evaluation.py
+    restart: "no"
+
+  # Data preprocessing service
+  preprocess:
+    image: watsonblair/cs627-svs:cpu
+    container_name: cs627-preprocess
+    volumes:
+      - ./data:/workspace/data
+    command: bash -c "
+      python scripts/data_wrangling/download_test_videos.py &&
+      python scripts/data_wrangling/extract_test_segments.py
+      "
+    restart: "no"
+
+  # Smoke test service
+  test:
+    image: watsonblair/cs627-svs:gpu
+    container_name: cs627-test
+    environment:
+      - DEVICE=${DEVICE:-cuda}
+    volumes:
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./tests:/workspace/tests
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python -m pytest tests/unit/smoke_test.py -v
+    restart: "no"
+
+# Volumes for persistent data
+volumes:
+  mosi-data:
+    driver: local
+  model-weights:
+    driver: local
+  training-reports:
+    driver: local
+
+# Networks
+networks:
+  default:
+    name: cs627-network
+    driver: bridge
