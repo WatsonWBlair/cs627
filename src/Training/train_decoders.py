@@ -228,6 +228,15 @@ def main():
     # 3. LOAD DATASET
     # =========================================================================
 
+    # Download data from S3 if enabled
+    if os.getenv('USE_S3', '0') == '1':
+        print("\n[S3] S3 data loading enabled, downloading training data...")
+        from src.utils.s3_data_manager import download_if_enabled
+        if not download_if_enabled():
+            print("[ERROR] Failed to download training data from S3")
+            return 1
+        print("[S3] Data download complete")
+
     print("\n[3/6] Loading dataset...")
 
     try:

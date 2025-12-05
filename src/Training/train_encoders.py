@@ -821,6 +821,15 @@ def main():
     print(f"Weights will be saved to: {CANDIDATE_WEIGHTS_DIR}/{INSTANCE_ID}_<timestamp>/")
     print("=" * 80)
 
+    # Download data from S3 if enabled
+    if os.getenv('USE_S3', '0') == '1':
+        print("\n[S3] S3 data loading enabled, downloading training data...")
+        from src.utils.s3_data_manager import download_if_enabled
+        if not download_if_enabled():
+            print("[ERROR] Failed to download training data from S3")
+            return
+        print("[S3] Data download complete")
+
     # Load dataset
     print("\n[1/5] Loading dataset...")
     try:

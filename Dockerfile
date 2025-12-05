@@ -82,6 +82,13 @@ ENV MOSI_DATA_PATH=/workspace/data/cmumosi/mosi/ \
     OPTIMAL_WEIGHTS_DIR=/workspace/OptimalWeights \
     CANDIDATE_WEIGHTS_DIR=/workspace/CandidateWeights
 
+# S3 configuration (set USE_S3=1 to enable S3 data loading)
+ENV USE_S3=0 \
+    S3_BUCKET=cs627-svs-data \
+    S3_REGION=us-east-1 \
+    S3_DATA_PREFIX=data/cmumosi/ \
+    S3_WEIGHTS_PREFIX=OptimalWeights/
+
 # Health check - verify GPU is accessible
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import torch; print(f'GPU available: {torch.cuda.is_available()}')" || exit 1
