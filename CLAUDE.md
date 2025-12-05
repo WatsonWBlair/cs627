@@ -43,6 +43,27 @@ MLP bridge between pretrained models and semantic space.
 
 ## Training
 
+### Data Workflow (Docker/S3)
+
+Training scripts assume data is pre-staged by default. Controlled via `SKIP_DOWNLOAD` env var:
+
+```bash
+# Data preparation (separate step, run once)
+SKIP_DOWNLOAD=0 python -c "from src.Training.Data_Wrangling.mosi_dataset import download_mosi; download_mosi('data/cmumosi/mosi/')"
+
+# Training (assumes data exists)
+python src/Training/train_encoders.py   # SKIP_DOWNLOAD=1 by default
+python src/Training/train_decoders.py   # SKIP_DOWNLOAD=1 by default
+```
+
+**Environment Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SKIP_DOWNLOAD` | `1` | Skip SDK downloads (assume pre-staged data) |
+| `MOSI_DATA_PATH` | `data/cmumosi/mosi/` | Path to MOSI metadata |
+| `AUDIO_DIR` | `data/cmumosi/audio/` | Extracted audio files |
+| `VIDEO_DIR` | `data/cmumosi/frames/` | Extracted video frames |
+
 ### Encoder Training (`src/Training/train_encoders.py`)
 - Uses Cross-Modal Momentum Contrastive Learning (MoCo)
 - Dataset: CMU-MOSI (text, audio, video segments)

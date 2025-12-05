@@ -11,13 +11,17 @@ Dataset: CMU Multimodal Opinion Sentiment Intensity (MOSI)
 
 All data is eagerly loaded into RAM during dataset initialization for fast training.
 
+Environment Variables:
+    SKIP_DOWNLOAD=1 (default): Skip SDK downloads, assume data is pre-staged
+    SKIP_DOWNLOAD=0: Enable SDK downloads (for data preparation)
+
 Usage:
     from Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset, download_mosi
 
-    # Download MOSI metadata (first time only)
+    # Download MOSI metadata (first time only, or set SKIP_DOWNLOAD=0)
     download_mosi('data/cmumosi/mosi/')
 
-    # Load dataset (all data loaded into RAM)
+    # Load dataset (SKIP_DOWNLOAD=1 by default, assumes data is pre-staged)
     dataset = MOSIRawVideoDataset(
         split='train',
         mosi_data_path='data/cmumosi/mosi/',
@@ -37,10 +41,13 @@ import pickle
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from typing import Dict
+from typing import Dict, Optional
 import h5py
 import librosa
 from PIL import Image as PILImage
+
+# Skip SDK downloads by default - assumes data is pre-staged (Docker/S3 workflow)
+SKIP_DOWNLOAD = os.getenv('SKIP_DOWNLOAD', '1') == '1'
 
 
 def download_mosi(data_path: str = 'data/cmumosi/'):
@@ -149,7 +156,8 @@ class MOSIRawVideoDataset(Dataset):
         train_ratio: float = 0.7,
         val_ratio: float = 0.15,
         seed: int = 42,
-        required_modalities: list = None
+        required_modalities: list = None,
+        skip_download: Optional[bool] = None
     ):
         """
         Args:
@@ -164,6 +172,9 @@ class MOSIRawVideoDataset(Dataset):
                                 (default: ['text', 'audio', 'video'] for backward compatibility)
                                 Options: 'text', 'audio', 'video'
                                 Example: ['text'] for text-only training
+            skip_download: Skip SDK downloads (default: uses SKIP_DOWNLOAD env var)
+                          True = assume data is pre-staged, load from CDF files directly
+                          False = use SDK which may trigger downloads
         """
         super().__init__()
 
@@ -173,6 +184,9 @@ class MOSIRawVideoDataset(Dataset):
             self.mosi_data_path = self.mosi_data_path + '/'
         self.audio_dir = audio_dir
         self.video_dir = video_dir
+
+        # Use global SKIP_DOWNLOAD if not specified
+        self.skip_download = skip_download if skip_download is not None else SKIP_DOWNLOAD
 
         # Default to requiring all modalities for backward compatibility
         if required_modalities is None:
@@ -187,6 +201,7 @@ class MOSIRawVideoDataset(Dataset):
 
         print(f"Loading raw MOSI data from {self.mosi_data_path}...")
         print(f"  Required modalities: {', '.join(self.required_modalities)}")
+        print(f"  Skip download: {self.skip_download}")
 
         # Try to load from preprocessed pkl files first (fine-grained segments)
         pkl_split = 'valid' if split == 'valid' else split
@@ -199,21 +214,54 @@ class MOSIRawVideoDataset(Dataset):
             split_segment_ids = pkl_data['segment_ids']
             print(f"  Found {len(split_segment_ids)} fine-grained segments for {split} split")
         else:
+            if self.skip_download:
+                raise FileNotFoundError(
+                    f"Preprocessed data not found: {pkl_path}\n"
+                    f"SKIP_DOWNLOAD=1 requires pre-staged data. Either:\n"
+                    f"  1. Run data preparation: SKIP_DOWNLOAD=0 python -c \"from src.Training.Data_Wrangling.mosi_dataset import download_mosi; download_mosi('{self.mosi_data_path}')\"\n"
+                    f"  2. Copy pre-staged data from S3 to {self.mosi_data_path}"
+                )
             # Fall back to SDK-based segment loading (coarse-grained)
             print(f"  [WARNING] {pkl_path} not found, falling back to SDK-based loading")
             split_segment_ids = self._load_segments_from_sdk(split, train_ratio, val_ratio, seed)
 
-        # Load raw text data from SDK (words sequence)
+        # Load raw text data from SDK (words sequence) or from pre-staged CDF files
         print("  Loading words sequence for raw text...")
         try:
             from mmsdk import mmdatasdk
-            raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, self.mosi_data_path)
-            words_seq = raw_data.computational_sequences['words']
 
-            # Also load labels
-            highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, self.mosi_data_path)
-            highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, self.mosi_data_path)
-            labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
+            if self.skip_download:
+                # Load from pre-staged CDF files without triggering downloads
+                # Check if CDF files exist first
+                words_cdf = os.path.join(self.mosi_data_path, 'CMU_MOSI_TimestampedWords.cdf')
+                labels_cdf = os.path.join(self.mosi_data_path, 'CMU_MOSI_Opinion_Labels.cdf')
+
+                if not os.path.exists(words_cdf):
+                    raise FileNotFoundError(
+                        f"Pre-staged CDF file not found: {words_cdf}\n"
+                        f"SKIP_DOWNLOAD=1 requires pre-staged data."
+                    )
+
+                # Load directly from local CDF files (mmdataset with local paths only)
+                raw_data = mmdatasdk.mmdataset({
+                    'words': words_cdf
+                }, self.mosi_data_path)
+                words_seq = raw_data.computational_sequences['words']
+
+                # Load labels
+                highlevel_data = mmdatasdk.mmdataset({
+                    'Opinion Segment Labels': labels_cdf
+                }, self.mosi_data_path)
+                labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
+            else:
+                # Original behavior - may trigger downloads
+                raw_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.raw, self.mosi_data_path)
+                words_seq = raw_data.computational_sequences['words']
+
+                # Also load labels
+                highlevel_data = mmdatasdk.mmdataset(mmdatasdk.cmu_mosi.highlevel, self.mosi_data_path)
+                highlevel_data.add_computational_sequences(mmdatasdk.cmu_mosi.labels, self.mosi_data_path)
+                labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
         except ImportError:
             raise ImportError(
                 "CMU-MultimodalSDK not installed. Install it:\n"

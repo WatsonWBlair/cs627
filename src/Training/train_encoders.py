@@ -9,6 +9,19 @@ Based on MoCo (Momentum Contrast) approach with multi-positive InfoNCE loss.
 Usage:
     python src/Training/train_encoders.py
 
+Environment Variables:
+    SKIP_DOWNLOAD=1 (default): Skip SDK downloads, assume data is pre-staged
+    SKIP_DOWNLOAD=0: Enable SDK downloads (for data preparation)
+
+    Data Paths:
+    MOSI_DATA_PATH=data/cmumosi/mosi/
+    AUDIO_DIR=data/cmumosi/audio/
+    VIDEO_DIR=data/cmumosi/frames/
+
+    Training Hyperparameters:
+    BATCH_SIZE=32, LEARNING_RATE=0.0001, EPOCHS=30
+    MOMENTUM=0.999, QUEUE_SIZE=4096, TEMPERATURE=0.07
+
 Architecture:
     - Encoder Swarm: Multiple encoders per modality, each focusing on specific features
     - Cross-Modal Learning: Each encoder learns from all other encoders as positive pairs

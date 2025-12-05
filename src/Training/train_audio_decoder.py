@@ -24,9 +24,14 @@ Stage 2 (Generation - Fine-tuning):
 Usage:
     python src/Training/train_audio_decoder.py
 
-    # Environment variable configuration:
-    TRAINING_STAGE=proxy python src/Training/train_audio_decoder.py
-    PROXY_EPOCHS=15 GENERATION_EPOCHS=5 python src/Training/train_audio_decoder.py
+Environment Variables:
+    SKIP_DOWNLOAD=1 (default): Skip SDK downloads, assume data is pre-staged
+    SKIP_DOWNLOAD=0: Enable SDK downloads (for data preparation)
+
+    Training Configuration:
+    TRAINING_STAGE=proxy (or 'generation')
+    PROXY_EPOCHS=15, GENERATION_EPOCHS=5
+    BATCH_SIZE=8, LEARNING_RATE=0.0001
 
 Based on: "Bootstrapping Multi-Modal Semantic-Vector Spaces" (Fig. 4, page 3)
 """

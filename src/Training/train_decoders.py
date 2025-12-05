@@ -14,9 +14,18 @@ Features:
 Usage:
     python src/Training/train_decoders.py
 
-    # Environment variable configuration:
-    SEMANTIC_SOURCE=mixed python src/Training/train_decoders.py
-    TRAIN_TEXT=1 TRAIN_AUDIO=1 python src/Training/train_decoders.py
+Environment Variables:
+    SKIP_DOWNLOAD=1 (default): Skip SDK downloads, assume data is pre-staged
+    SKIP_DOWNLOAD=0: Enable SDK downloads (for data preparation)
+
+    Decoder Configuration:
+    SEMANTIC_SOURCE=text_only (or 'matched', 'mixed')
+    TRAIN_TEXT=1, TRAIN_AUDIO=0, TRAIN_IMAGE=0
+
+    Data Paths:
+    MOSI_DATA_PATH=data/cmumosi/mosi/
+    AUDIO_DIR=data/cmumosi/audio/
+    VIDEO_DIR=data/cmumosi/frames/
 
 Based on: src/Training/train_encoders.py
 """
