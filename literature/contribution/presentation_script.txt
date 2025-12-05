@@ -1,0 +1,32 @@
+Bootstrapping Multi-Modal Shared Semantic-Vector Spaces(SSVS)
+from pretrained Encoder/Decoder Modules
+
+Introduction:
+Hello everyone, I’m here to discuss a training and evaluation framework that bootstraps robust multi-modal inference and reasoning pipelines at 1% the compute cost of fine-tuning.
+I know, that's a big claim. Unfortunately I don’t have the time on stage to talk about the technical details that make this possible, but I do have time to set context about how we got here and what it means going forward.
+
+The Narative: My semester chasing META
+- Starting with SLU
+    - It started with a research project into Spoken Language Understanding
+        - the task of extracting semantic information directly from audio features
+        - usually using an E2E model to avoid errors introduced by translating between modalities.
+- What is an internal representatoin?
+    - This got me wondering, can we expand the internal representational space of a model? Could we make space inside an end-to-end model for something else?
+        - A paper by Meta, published August of 2023, showed that we can!  SONAR was able to bootstrap a text encoder-decoder architecture for 200 languages and speech encoders for 37 languages. It showed incredible performance, particularly for languages with limited training data.
+- How can we use internal spaces?
+    - Building on this I began to research what it would take for a model to operate within that vector space. After all, a model in that space would essentially operate as a Vec_2_Vec transformer….
+        - And Again, A paper by Meta: Large Concept Models: Language Modeling in a Sentence Representation Space beat me to it. They found that models operating in this representation space out performed models of similar size in summarization and zero-shot generalization tasks.
+        - This paper was published in December of 2024. I was gaining on them.
+- How far can we push it?
+    - This is exciting! If we have a shared space, and we can operate a model within it… what about more complex model behavior?
+        - Meta beat me to it again: Training Large Language Models to Reason in a Continuous Latent Space. They found that by not requiring models to translate their internal representations into English, then back into an internal representation, they not only drastically reduced the number of tokens used and semantic drift incurred during reasoning tasks, they found that operating in a dense vector space enabled Breath-First search over local reasoning space.
+        - This is exciting. This is BIG. And this paper was revised last month. I’ve nearly caught them!
+- Efficency Game Changer
+    - But all of the pices are here: we’ve shown that we can boot-strap a Shared Vector Modality, and that operating models inside this vector space has distinct benefits. The exciting science is done. Now it’s time for engineering! I begin by exploring more efficient ways to align models to a space… you know, if a pretrained model gets you 80% of the way there, I wondered if a a small adapter layer could….
+        - Aligning Pretrained Encoders to Quickly Learn Aligned Multimodal Representations. Scooped AGAIN. This time from all the way back in ‘22. 
+        - The APE architecture trains a small MLP to bridge the gap between a frozen pretrained model and a given task, managing middle of the pack performance while training 77% fewer parameters.
+- Contributing to the research comunity.
+    - I’ll be honest, I was frustrated. Then I remembered, science is less about ground shaking, paradigm shifting discoveries, it’s about incremental improvement and exploration of the discoveries we already have. 
+        - So I present my contribution to the great work. SVS-Swarm: Joint Learned Multi-Modal Semantic-Vector Spaces. This toolset decreases the cost of aligning SVSs by a conservative estimate of 15x, significantly reducing the barrier of entry to research into the nature and capabilities of Semantic-Vector Spaces.
+
+- Thank you for your time and attention, if you are interested in learning more I will be by my poster and would love to discuss the technical details at exhaustive length.

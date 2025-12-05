@@ -1,0 +1,11 @@
+{
+  "epoch": 20,
+  "losses": {
+    "text_base": 1.679851856496599,
+    "total_loss": 1.679851856496599
+  },
+  "fidelity": {
+    "text_base": 0.0
+  },
+  "best_loss": 1.679851856496599
+}
