@@ -1,0 +1,69 @@
+# CS627 Lightweight Ablation Study Image
+# Optimized for adapter training with pre-generated tokens
+# ~60% smaller than full image, no encoder dependencies
+
+FROM python:3.10-slim
+
+# Metadata
+LABEL maintainer="Watson Blair"
+LABEL description="CS627 lightweight ablation study environment with pre-baked tokens"
+LABEL version="1.0.0"
+
+# Set working directory
+WORKDIR /workspace
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy minimal requirements
+COPY requirements-ablation.txt /workspace/
+
+# Install only essential Python packages
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.5.1 && \
+    pip install --no-cache-dir \
+    numpy>=1.21.0 \
+    h5py>=3.8.0 \
+    tqdm>=4.65.0 \
+    click>=8.1.0 \
+    pandas>=1.3.0
+
+# Copy only necessary source code (no encoders/decoders needed)
+COPY src/utils/Adapter.py /workspace/src/utils/
+COPY src/Training/adapter_trainer.py /workspace/src/Training/
+COPY src/Training/train_adapters.py /workspace/src/Training/
+COPY src/Training/Data_Wrangling/token_dataset.py /workspace/src/Training/Data_Wrangling/
+COPY src/Training/Data_Wrangling/__init__.py /workspace/src/Training/Data_Wrangling/
+COPY src/Training/__init__.py /workspace/src/Training/
+COPY src/__init__.py /workspace/src/
+COPY src/Experiments/ /workspace/src/Experiments/
+
+# Copy CLI and configuration
+COPY cli.py /workspace/
+COPY Makefile /workspace/
+
+# Pre-bake token data into image (if they exist)
+# This eliminates the need for volume mounts during training
+COPY data/pregenerated_tokens /workspace/data/tokens
+
+# Create output directories
+RUN mkdir -p /workspace/OptimalWeights \
+    /workspace/Results/adapter_training \
+    /workspace/Results/ablation \
+    /workspace/configs/ablation
+
+# Set environment variables for token location
+ENV TOKEN_DIR=/workspace/data/tokens/mosi
+ENV BATCH_SIZE=256
+ENV EPOCHS=50
+ENV DEVICE=cpu
+ENV USE_AMP=0
+
+# Default command shows available options
+CMD ["python", "-c", "print('\\nCS627 Ablation Study Image\\n========================\\n\\nUsage:\\n  python src/Training/train_adapters.py --mode encoder\\n  python src/Experiments/run_ablation.py --config recommended\\n  python cli.py ablation --configs grid_search\\n\\nPre-baked tokens available at: /workspace/data/tokens/\\n')"]

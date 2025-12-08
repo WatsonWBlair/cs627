@@ -141,6 +141,27 @@ services:
     tty: true
     restart: unless-stopped
 
+  # Lightweight Ablation Study Service
+  ablation:
+    image: watsonwb/cs627-svs:ablation
+    build:
+      context: .
+      dockerfile: Dockerfile.ablation
+    container_name: cs627-ablation
+    environment:
+      - DEVICE=cpu  # CPU-only for cost efficiency
+      - TOKEN_DIR=/workspace/data/tokens/mosi  # Pre-baked tokens
+      - BATCH_SIZE=${BATCH_SIZE:-256}
+      - EPOCHS=${EPOCHS:-30}
+      - LEARNING_RATE=${LEARNING_RATE:-0.001}
+    volumes:
+      # Only mount results directory (tokens are pre-baked)
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./Results:/workspace/Results
+      - ./configs:/workspace/configs
+    command: python src/Experiments/run_ablation.py --config recommended
+    restart: "no"
+
   # Evaluation Service
   evaluate:
     image: watsonwb/cs627-svs:gpu
