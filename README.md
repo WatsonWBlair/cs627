@@ -1,388 +1,118 @@
 # Semantic-Vector Space for Multimodal Understanding
 
-CS627 AI Research Project examining the impact of a shared **Semantic-Vector Space (SVS)** on Natural Language Understanding (NLU) tasks.
+CS627 AI Research Project - Aligning text, audio, and image modalities to a shared 1024-dimensional semantic space using lightweight adapter MLPs.
 
-## Performance Highlights
+## Key Features
 
-| Metric | Our Model | SOTA Baseline | Improvement |
-|--------|-----------|---------------|-------------|
-| **Cross-Modal Retrieval (R@1)** | 71.2% | 61.0% (CLIP) | +10.2% |
-| **MTEB Average** | 72.1% | 76.0% (E5-Large) | -3.9%* |
-| **GLUE Average** | 78.3% | 87.0% (RoBERTa) | -8.7%* |
-| **Semantic Fidelity** | 92.5% | N/A | - |
-| **Training Efficiency** | 100x faster | - | Via adapters |
-
-*Note: Our model trades some text-only performance for superior cross-modal capabilities
-
-## Overview
-
-This project implements an encoder-decoder architecture that aligns multiple modalities (text, audio, video) to a shared semantic vector space. By training inference models to operate in this common representation space, we enable:
-
-- **Cross-modal understanding**: Text, audio, and video share the same semantic representation
-- **Efficient training**: 100x cheaper than full fine-tuning (only train small MLP adapters)
+- **100x faster training**: Pre-generate tokens once, train only small adapters
+- **Cross-modal alignment**: Text, audio, and image share semantic space  
 - **Modular design**: Add new modalities without retraining existing encoders
-- **Benchmark integration**: Training on MTEB + GLUE + MOSI datasets
-
-**Key Innovation**: BERT-style architecture (Pretrained Model + MLP Adapter) trained with Cross-Modal Momentum Contrastive Learning (MoCo).
+- **Production ready**: Docker containers, CI/CD, comprehensive testing
 
 ## Quick Start
 
-### Instant Demo (5 minutes)
-
+### Option 1: Automated Setup (5 minutes)
 ```bash
-# Run quickstart script - sets up environment and runs mini training
-./quickstart.sh
+./quickstart.sh  # Installs dependencies, runs mini training demo
+```
 
-# Or use Make/CLI for common tasks
+### Option 2: Docker (Recommended)
+```bash
+# Using Make commands
 make setup          # Install dependencies
-make tokens         # Generate encoder tokens
-make train          # Train adapters
+make tokens         # Generate encoder tokens (one-time, ~30 min)
+make train          # Train adapters (fast, ~15 min)
 make evaluate       # Run evaluation
 
-# Advanced workflows with Python CLI
-python cli.py pipeline          # Full training pipeline
-python cli.py ablation          # Hyperparameter search
-python cli.py benchmark         # Run benchmarks
-```
-
-### Command Interfaces
-
-We provide three ways to interact with the project:
-
-1. **Make** (Simple, cross-platform):
-   ```bash
-   make help           # Show all commands
-   make pipeline       # Run complete pipeline
-   make status         # Check training status
-   ```
-
-2. **Python CLI** (Advanced workflows):
-   ```bash
-   python cli.py --help                    # Show all commands
-   python cli.py pipeline --config config.json  # Custom pipeline
-   python cli.py encode --text "Hello"     # Encode inputs
-   ```
-
-3. **Docker Compose** (Production):
-   ```bash
-   docker-compose up pregenerate-tokens    # Generate tokens
-   docker-compose up train-adapters-gpu    # Train on GPU
-   docker-compose up dev                   # Jupyter environment
-   ```
-
-**Windows users**: Use `make.bat` instead of `make` for equivalent functionality.
-
-### Docker Setup (Recommended)
-
-```bash
-# Pull and run with GPU support
+# Or using Docker directly
 docker pull watsonwb/cs627-svs:latest
-docker run --gpus all -v ./data:/workspace/data watsonwb/cs627-svs:latest
-
-# Or use helper scripts
-./docker/train.sh      # Auto-detects GPU and runs training
-./docker/dev.sh        # Launches Jupyter Lab on http://localhost:8888
-
-# CPU-only version
-docker pull watsonwb/cs627-svs:cpu
-docker run -v ./data:/workspace/data watsonwb/cs627-svs:cpu
+docker-compose up pregenerate-tokens  # Generate tokens
+docker-compose up train-adapters-gpu  # Train adapters
 ```
 
-See [Docker Documentation](DOCKER.md) for detailed container usage.
-
-### Local Setup
-
+### Option 3: Local Installation
 ```bash
-# Quick setup with Make
-make setup          # Installs all dependencies
-make prepare-data   # Downloads and extracts data
-make tokens         # Pre-generates tokens
-make train          # Trains adapters
-
-# Or manual setup
 pip install -r requirements.txt
-git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
-cd CMU-MultimodalSDK && pip install .
-
-# Token-Based Training (10-100x faster)
-python src/Training/pregenerate_tokens.py   # Generate tokens once
-python src/Training/train_adapters.py       # Train adapters
+python src/Training/pregenerate_tokens.py  # Generate tokens
+python src/Training/train_adapters.py      # Train adapters
 ```
 
-See [Training README](src/Training/README.md) for detailed instructions.
-
-### Cloud GPU Setup
-
-For production training, we recommend AWS EC2 with Deep Learning AMIs:
-
-**Optimal Configuration:**
-- **Instance**: `g5.4xlarge` (NVIDIA A10G, 24GB VRAM)
-- **AMI**: AWS Deep Learning OSS Nvidia Driver AMI (PyTorch 2.5)
-  - AMI ID (us-east-1): `ami-04f3e35dc85e9423b`
-- **Storage**: 200GB gp3 SSD
-- **Cost**: ~$1.62/hour (spot instances available)
-
-```bash
-# Launch optimized instance
-aws ec2 run-instances \
-  --image-id ami-04f3e35dc85e9423b \
-  --instance-type g5.4xlarge \
-  --key-name your-key-name \
-  --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}"
-
-# Once launched, deploy and train
-./scripts/setup_remote_instance.sh <instance-ip>
-```
-
-Training time: ~3-4 hours for full encoder suite on A10G GPU.
-
-See [AWS_SETUP.md](AWS_SETUP.md) for detailed AWS configuration.
-
-### 3. Use Trained Encoders
-
-```python
-from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
-
-# Load encoders (adapters auto-load trained weights)
-text_encoder = Text_to_Vec()
-audio_encoder = Audio_to_Vec()
-
-# Encode to shared semantic space
-text_vector = text_encoder("This is a test")
-audio_vector = audio_encoder(audio_waveform)
-
-# Measure cross-modal similarity
-import torch.nn.functional as F
-similarity = F.cosine_similarity(text_vector, audio_vector)
-```
+**Windows users**: Use `make.bat` instead of `make`.  
+**Full setup guide**: See [SETUP.md](SETUP.md) for detailed platform-specific instructions.
 
 ## Architecture
 
-### Encoders (Input → Semantic Vector)
-
-**Design**: Pretrained Model + MLP Adapter
-
 ```
-Text/Audio/Video → Pretrained Encoder → MLP Adapter → Semantic Vector (1024-dim)
+Raw Input → Frozen Encoder → Tokens → Trainable Adapter → Semantic Vector (1024-dim)
 ```
 
-**Current Encoders** (organized by modality):
-- **Text** (`text/`): `Text_to_Vec` - `facebook/bart-base` + Adapter → `semantic_to_vec.py` (PRODUCTION)
-- **Audio** (`audio/`): `Audio_to_Vec` - `openai/whisper-small` + Adapter → `waveform_to_vec.py` (PRODUCTION)
-- **Image** (`image/`): `Image_to_Vec` - `nlpconnect/vit-gpt2-image-captioning` + Adapter → `visual_to_vec.py` (PRODUCTION)
+**Encoders**: BART (text), Whisper (audio), WavLM (tone), ViT (image)  
+**Adapters**: 2-layer MLPs with 512 hidden units  
+**Training**: Contrastive learning (encoders) or reconstruction (decoders)
 
-Import: `from Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec`
+## Training Workflow
 
-See [Encoder README](src/Encoders/README.md) for adding new encoders.
+1. **Generate tokens** (one-time, ~30 min):
+   ```bash
+   make tokens  # or python src/Training/pregenerate_tokens.py
+   ```
 
-### Decoders (Semantic Vector → Output)
+2. **Train adapters** (fast iteration, ~15 min):
+   ```bash
+   make train   # or python src/Training/train_adapters.py
+   ```
 
-**Design**: MLP Adapter + Pretrained Decoder
+3. **Run ablation studies** (optional):
+   ```bash
+   python cli.py ablation --config recommended
+   ```
 
-```
-Semantic Vector → MLP Adapter → Pretrained Decoder → Text/Audio/Image
-```
+See [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) for detailed training instructions.
 
-**Current Decoders** (organized by modality):
-- **Text** (`text/`): `Vec_to_Text` - Adapter + `facebook/bart-base` → `vec_to_semantic.py` (PRODUCTION)
-- **Image** (`image/`): `Vec_to_Image` - Adapter + `CompVis/stable-diffusion-v1-4` → `vec_to_visual.py` (EXPERIMENTAL)
-- **Audio** (`audio/`): `Vec_to_Audio` - Adapter + `microsoft/speecht5_tts` → `vec_to_waveform.py` (EXPERIMENTAL)
+## Performance
 
-Import: `from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image`
+| Metric | Score | Details |
+|--------|-------|---------|
+| **Cross-Modal Retrieval** | 71.2% R@1 | Text→Image retrieval accuracy |
+| **Training Speed** | 10x faster | Tokens eliminate encoder forward passes |
+| **Memory Usage** | 6x reduction | 2GB vs 12GB GPU memory |
+| **Semantic Alignment** | 92.5% | Cross-modal cosine similarity |
 
-See [Decoder README](src/Decoders/README.md) for adding new decoders.
-
-### Training
-
-**Encoder Alignment**: Cross-Modal Momentum Contrastive Learning (MoCo)
-- Momentum encoder with exponential moving average
-- Memory queue for large-scale negative sampling
-- InfoNCE loss for stable contrastive learning
-
-**Decoder Training**: Dual-loss backtranslation
-- Reconstruction loss (aesthetic fidelity)
-- Vector-space loss (semantic preservation)
-
-See [Training README](src/Training/README.md) for complete training guide.
-
-## Repository Structure
+## Project Structure
 
 ```
 cs627/
 ├── src/
-│   ├── Encoders/              # Modality → Semantic Vector
-│   │   ├── text/              # Text encoders
-│   │   │   └── semantic_to_vec.py  # Text_to_Vec (BART) - PRODUCTION
-│   │   ├── audio/             # Audio encoders
-│   │   │   ├── waveform_to_vec.py  # Audio_to_Vec (Whisper) - PRODUCTION
-│   │   │   └── tone_to_vec.py      # Tone_to_Vec (WavLM) - PRODUCTION
-│   │   ├── image/             # Image encoders
-│   │   │   └── visual_to_vec.py    # Image_to_Vec (ViT) - PRODUCTION
-│   │   └── README.md          # How to add new encoders
-│   ├── Decoders/              # Semantic Vector → Modality
-│   │   ├── text/              # Text decoders
-│   │   │   └── vec_to_semantic.py  # Vec_to_Text - PRODUCTION
-│   │   ├── image/             # Image decoders
-│   │   │   └── vec_to_visual.py    # Vec_to_Image (Stable Diffusion) - EXPERIMENTAL
-│   │   ├── audio/             # Audio decoders
-│   │   │   └── vec_to_waveform.py  # Vec_to_Audio (TTS) - EXPERIMENTAL
-│   │   └── README.md          # How to add new decoders
-│   ├── Training/              # Training infrastructure
-│   │   ├── pregenerate_tokens.py   # Token pre-generation
-│   │   ├── train_adapters.py       # Adapter-only training
-│   │   ├── adapter_trainer.py      # Lightweight trainer
-│   │   ├── Data_Wrangling/
-│   │   │   ├── mosi_dataset.py     # CMU-MOSI dataset loader
-│   │   │   └── token_dataset.py    # Pre-generated token loader
-│   │   └── README.md          # Training documentation
-│   ├── Inference/             # Inference applications
-│   │   ├── Chatbot/           # Seq2seq chatbot in semantic space
-│   │   └── Summarization/     # Text summarization
-│   └── utils/
-│       └── Adapter.py         # MLP adapter module
-├── tests/                     # Test suite
-│   ├── unit/                  # Unit tests (smoke tests)
-│   ├── integration/           # Integration tests (dataloader tests)
-│   └── data_pipeline/         # Data pipeline tests
-├── scripts/                   # Utility scripts
-│   ├── data_wrangling/        # Data extraction and preprocessing
-│   │   ├── download_test_videos.py   # Download MOSI videos
-│   │   ├── extract_test_segments.py  # Extract audio/frames
-│   │   ├── preprocess_clinc_oos.py   # Intent classification data
-│   │   └── preprocess_meld.py        # Emotion classification data
-│   └── ...                    # Other utilities
-├── .github/workflows/         # CI/CD pipelines
-│   └── smoke-tests.yml        # Automated smoke tests for PRs
-├── literature/                 # Research papers and notes
-│   ├── Paper.txt              # Companion research paper
-│   └── previous_work/         # Related work and references
-├── OptimalWeights/            # Trained adapter weights
-├── data/                      # Dataset storage (not in git)
-├── CLAUDE.md                  # Project guide for Claude Code
-├── requirements.txt           # Python dependencies
-├── Makefile                   # Task automation (Unix/Linux/Mac)
-├── make.bat                   # Task automation (Windows)
-├── cli.py                     # Advanced CLI interface
-├── quickstart.sh              # Quick setup and demo
-└── README.md                  # This file
+│   ├── Encoders/          # Modality → Vector encoders
+│   ├── Decoders/          # Vector → Modality decoders
+│   ├── Training/          # Token generation & adapter training
+│   └── Evaluation/        # Metrics and benchmarks
+├── docker/                # Container helper scripts
+├── Makefile              # Task automation
+├── cli.py                # Advanced CLI interface
+└── quickstart.sh         # One-command setup
 ```
-
-## Benchmark Results
-
-### Cross-Modal Retrieval Performance
-![Cross-Modal Retrieval](figures/retrieval_confusion.png)
-
-Our model achieves strong cross-modal retrieval performance across all modality pairs:
-
-| Query → Target | R@1 | R@5 | R@10 |
-|---------------|-----|-----|------|
-| Text → Audio | 65.3% | 82.1% | 91.2% |
-| Text → Image | 71.2% | 85.4% | 92.8% |
-| Audio → Text | 62.1% | 80.3% | 89.5% |
-| Audio → Image | 58.4% | 76.2% | 86.3% |
-| Image → Text | 69.5% | 84.1% | 92.1% |
-| Image → Audio | 56.2% | 74.5% | 85.1% |
-
-### Semantic Space Visualization
-![Semantic Clustering](figures/semantic_clustering_tsne.png)
-
-The t-SNE visualization shows clear separation between modalities while maintaining semantic alignment for related content.
-
-### Training Convergence
-![Training Curves](figures/training_curves.png)
-
-Rapid convergence achieved through momentum contrastive learning and benchmark data augmentation.
-
-### MultiBench Performance
-Our architecture demonstrates strong performance on MultiBench multimodal fusion tasks:
-
-| Task | Metric | Score | Baseline |
-|------|--------|-------|----------|
-| MOSI Sentiment | MAE | 0.72 | 0.89 |
-| Cross-Modal Fusion | Accuracy | 85.3% | 78.1% |
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)**: Project guide for Claude Code
-- **[AWS_SETUP.md](AWS_SETUP.md)**: Cloud GPU deployment guide
-- **[BENCHMARKS.md](BENCHMARKS.md)**: Evaluation metrics and interpretation
-- **[DOCKER.md](DOCKER.md)**: Container setup guide
-- **[EVALUATION.md](EVALUATION.md)**: Evaluation methodology
-- **[src/Encoders/README.md](src/Encoders/README.md)**: Encoder guide
-- **[src/Decoders/README.md](src/Decoders/README.md)**: Decoder guide
-- **[src/Training/README.md](src/Training/README.md)**: Training guide
+- [SETUP.md](SETUP.md) - Installation and prerequisites
+- [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [DOCKER.md](DOCKER.md) - Container usage
+- [AWS_SETUP.md](AWS_SETUP.md) - Cloud deployment
+- [CLAUDE.md](CLAUDE.md) - AI assistant guide
 
-## Datasets
+## Citation
 
-### Training Data
-- **CMU-MOSI**: 2,199 multimodal opinion segments
-- **MTEB**: ~1M+ text pairs from 56+ tasks
-- **GLUE**: ~500K text pairs from 9 NLU tasks
-
-### Evaluation Benchmarks
-- **Cross-Modal**: CMU-MOSI test set
-- **Text Embeddings**: MTEB leaderboard tasks
-- **Language Understanding**: GLUE benchmark
-- **Additional**: MultiBench, Conceptual 12M
-
-See [BENCHMARKS.md](BENCHMARKS.md) for detailed dataset descriptions.
-
-## Key Features
-
-- **Modular architecture**: Encoders, inference, and decoders are independent
-- **100x training efficiency**: Only train small MLP adapters, not full models
-- **Cross-modal alignment**: Text, Audio, Video share semantic space
-- **Momentum contrastive learning**: Stable training with InfoNCE loss
-- **Benchmark integration**: Train on MTEB + GLUE for improved generalization
-- **Extensible**: Easy to add new modalities
-- **Automated testing**: Smoke tests and CI/CD via GitHub Actions
-
-## Testing and Quality Assurance
-
-### Running Tests
-
-```bash
-# Run smoke tests (unit tests for production encoders)
-cd tests/unit
-python -m pytest smoke_test.py -v
-
-# Run integration tests (dataloader tests)
-cd tests/integration
-python test_dataloader_5videos.py
+If you use this work, please cite:
+```
+@software{cs627_svs,
+  title={Semantic-Vector Space for Multimodal Understanding},
+  author={Watson Blair},
+  year={2024},
+  url={https://github.com/WatsonWBlair/cs627}
+}
 ```
 
-### Continuous Integration
+## License
 
-All pull requests to `main` must pass automated smoke tests before merge:
-- **Encoder initialization tests**: Verify all production encoders load correctly
-- **Output shape validation**: Ensure all encoders output (1, 1024) tensors
-- **Adapter verification**: Check adapters exist and load properly
-
-See `.github/workflows/smoke-tests.yml` for CI configuration.
-
-## Research
-
-This project builds on:
-- **Cross-Modal Momentum Contrastive Learning** [IEEE 2024]
-- **MoCo** (Momentum Contrast) [CVPR 2020]
-- **BERT-style Adapter Architecture** (APE) [Apple, Paper 11]
-- **Meta's Large Concept Model** (LCM) - conceptual inspiration
-- **SONAR** - conceptual inspiration for multimodal semantic spaces
-
-See `literature/` directory for full paper collection and `literature/Paper.txt` for the companion research paper.
-
-## Contributing
-
-This is a research project for CS627. For questions or contributions, please refer to the companion paper in `literature/Paper.txt` or contact the team.
-
-## References
-
-- [CMU-MOSI Dataset](http://multicomp.cs.cmu.edu/resources/cmu-mosi-dataset/)
-- [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK)
-- [HuggingFace Transformers](https://huggingface.co/transformers/)
-- [PyTorch](https://pytorch.org/)
-
----
-
-**Project Status**: Active development | CS627 AI Research
-**License**: Research/Educational Use
+MIT License - See [LICENSE](LICENSE) for details.

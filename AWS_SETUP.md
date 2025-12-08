@@ -1,189 +1,341 @@
-# AWS Training Setup
+# AWS Setup Guide
 
-Configuration for training on AWS EC2 GPU instances.
-
-## Recommended Configuration
-
-| Component | Recommendation |
-|-----------|---------------|
-| **Instance** | g5.4xlarge |
-| **GPU** | NVIDIA A10G (24GB VRAM) |
-| **AMI** | Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.8 (Amazon Linux 2023) |
-| **Storage** | 200GB gp3 |
-
-## Instance Type Comparison
-
-| Instance | GPU | VRAM | vCPUs | RAM | Cost/hr |
-|----------|-----|------|-------|-----|---------|
-| **g5.4xlarge** | A10G | 24GB | 16 | 64GB | ~$1.62 |
-| g5.2xlarge | A10G | 24GB | 8 | 32GB | ~$1.21 |
-| g4dn.xlarge | T4 | 16GB | 4 | 16GB | ~$0.53 |
+Deploy CS627 training on AWS EC2 with GPU support.
 
 ## Quick Start
 
+### 1. Launch Instance
+
 ```bash
-# 1. Launch instance via AWS Console
-#    - AMI: Search "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.8"
-#    - Instance type: g5.4xlarge
-#    - Storage: 200GB gp3
+# Using AWS CLI
+aws ec2 run-instances \
+  --image-id ami-04f3e35dc85e9423b \
+  --instance-type g5.4xlarge \
+  --key-name your-key \
+  --security-groups default \
+  --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}"
+```
 
-# 2. SSH to instance
-ssh ec2-user@<instance-ip>
+### 2. Connect and Setup
 
-# 3. Clone and setup
+```bash
+# SSH to instance
+ssh -i your-key.pem ubuntu@<instance-ip>
+
+# Clone repository
 git clone https://github.com/WatsonWBlair/cs627.git
 cd cs627
-pip install -r requirements.txt
 
-# 4. Install CMU-MultimodalSDK
-git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
-cd CMU-MultimodalSDK && pip install . && cd ..
+# Run setup script
+./scripts/setup_remote_instance.sh
+```
 
-# 5. Start training
-python src/Training/train_encoders.py
+### 3. Train
+
+```bash
+# Using Docker
+docker pull watsonwb/cs627-svs:latest
+make tokens
+make train
+
+# Or local
+python src/Training/pregenerate_tokens.py
+python src/Training/train_adapters.py
+```
+
+## Recommended Configuration
+
+| Component | Specification | Cost |
+|-----------|--------------|------|
+| **Instance** | g5.4xlarge | $1.62/hour |
+| **GPU** | NVIDIA A10G (24GB) | Included |
+| **vCPUs** | 16 | Included |
+| **Memory** | 64 GB | Included |
+| **Storage** | 200 GB gp3 | $16/month |
+| **Region** | us-east-1 | - |
+
+**Estimated training cost**: $5-10 for full pipeline
+
+## Instance Options
+
+### GPU Instances
+
+| Instance | GPU | VRAM | vCPUs | RAM | Cost/Hour |
+|----------|-----|------|-------|-----|-----------|
+| **g5.xlarge** | A10G | 24GB | 4 | 16GB | $1.01 |
+| **g5.2xlarge** | A10G | 24GB | 8 | 32GB | $1.21 |
+| **g5.4xlarge** | A10G | 24GB | 16 | 64GB | $1.62 |
+| **g4dn.xlarge** | T4 | 16GB | 4 | 16GB | $0.53 |
+| **p3.2xlarge** | V100 | 16GB | 8 | 61GB | $3.06 |
+
+### CPU Instances (for testing)
+
+| Instance | vCPUs | RAM | Cost/Hour |
+|----------|-------|-----|-----------|
+| **t3.xlarge** | 4 | 16GB | $0.17 |
+| **c5.2xlarge** | 8 | 16GB | $0.34 |
+
+## AMI Selection
+
+### Recommended AMI
+- **Name**: AWS Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.5.0
+- **AMI ID** (us-east-1): `ami-04f3e35dc85e9423b`
+- **AMI ID** (us-west-2): `ami-0c2d06d50ce30b442`
+
+### Finding Latest AMI
+```bash
+aws ec2 describe-images \
+  --owners amazon \
+  --filters "Name=name,Values=*Deep Learning AMI GPU PyTorch*" \
+  --query 'Images[0].ImageId'
+```
+
+## Step-by-Step Setup
+
+### 1. Create Security Group
+
+```bash
+# Create security group
+aws ec2 create-security-group \
+  --group-name cs627-training \
+  --description "CS627 training security group"
+
+# Allow SSH
+aws ec2 authorize-security-group-ingress \
+  --group-name cs627-training \
+  --protocol tcp \
+  --port 22 \
+  --cidr 0.0.0.0/0
+
+# Allow Jupyter (optional)
+aws ec2 authorize-security-group-ingress \
+  --group-name cs627-training \
+  --protocol tcp \
+  --port 8888 \
+  --cidr 0.0.0.0/0
+```
+
+### 2. Launch Instance
+
+```bash
+aws ec2 run-instances \
+  --image-id ami-04f3e35dc85e9423b \
+  --instance-type g5.4xlarge \
+  --key-name your-key \
+  --security-group-ids sg-xxxxx \
+  --instance-initiated-shutdown-behavior terminate \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=cs627-training}]' \
+  --block-device-mappings file://block-device-mappings.json
+```
+
+`block-device-mappings.json`:
+```json
+[
+  {
+    "DeviceName": "/dev/sda1",
+    "Ebs": {
+      "VolumeSize": 200,
+      "VolumeType": "gp3",
+      "DeleteOnTermination": true
+    }
+  }
+]
+```
+
+### 3. Connect to Instance
+
+```bash
+# Get instance IP
+INSTANCE_ID=$(aws ec2 describe-instances \
+  --filters "Name=tag:Name,Values=cs627-training" \
+  --query 'Reservations[0].Instances[0].InstanceId' \
+  --output text)
+
+INSTANCE_IP=$(aws ec2 describe-instances \
+  --instance-ids $INSTANCE_ID \
+  --query 'Reservations[0].Instances[0].PublicIpAddress' \
+  --output text)
+
+# SSH to instance
+ssh -i your-key.pem ubuntu@$INSTANCE_IP
+```
+
+### 4. Setup Environment
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Clone repository
+git clone https://github.com/WatsonWBlair/cs627.git
+cd cs627
+
+# Install Docker (if not present)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker ubuntu
+newgrp docker
+
+# Pull Docker image
+docker pull watsonwb/cs627-svs:latest
+```
+
+### 5. Transfer Data (Optional)
+
+```bash
+# From local machine
+scp -i your-key.pem -r data/pregenerated_tokens ubuntu@$INSTANCE_IP:~/cs627/data/
+
+# Or use S3
+aws s3 cp s3://your-bucket/tokens.tar.gz .
+tar -xzf tokens.tar.gz
+```
+
+### 6. Run Training
+
+```bash
+# Generate tokens (if needed)
+make tokens
+
+# Train adapters
+make train
+
+# Run ablation study
+python cli.py ablation --configs recommended
+```
+
+## Data Management
+
+### Using S3
+
+```bash
+# Upload tokens to S3
+aws s3 cp data/pregenerated_tokens s3://your-bucket/tokens/ --recursive
+
+# Download on instance
+aws s3 cp s3://your-bucket/tokens/ data/pregenerated_tokens/ --recursive
+
+# Sync results back
+aws s3 sync OptimalWeights/ s3://your-bucket/weights/
+aws s3 sync Results/ s3://your-bucket/results/
+```
+
+### Using EBS Snapshots
+
+```bash
+# Create snapshot of trained model
+aws ec2 create-snapshot \
+  --volume-id vol-xxxxx \
+  --description "CS627 trained models"
+
+# Restore from snapshot
+aws ec2 create-volume \
+  --snapshot-id snap-xxxxx \
+  --availability-zone us-east-1a
+```
+
+## Cost Optimization
+
+### Spot Instances (70% savings)
+
+```bash
+# Request spot instance
+aws ec2 request-spot-instances \
+  --instance-count 1 \
+  --type "one-time" \
+  --launch-specification file://spot-spec.json
+```
+
+### Auto-termination
+
+```bash
+# Set auto-termination after 2 hours
+echo "sudo shutdown -h +120" | at now
+
+# Or in user data
+#!/bin/bash
+cd /home/ubuntu/cs627
+make tokens
+make train
+aws s3 sync OptimalWeights/ s3://your-bucket/weights/
+sudo shutdown -h now
 ```
 
 ## Monitoring
 
-```bash
-# GPU utilization
-watch -n 1 nvidia-smi
+### CloudWatch Metrics
 
-# Training logs
-tail -f training.log
+```bash
+# Enable detailed monitoring
+aws ec2 monitor-instances --instance-ids $INSTANCE_ID
+
+# View GPU utilization
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/EC2 \
+  --metric-name GPUUtilization \
+  --dimensions Name=InstanceId,Value=$INSTANCE_ID \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-01T01:00:00Z \
+  --period 300 \
+  --statistics Maximum
+```
+
+### Instance Logs
+
+```bash
+# View training progress
+tail -f Results/adapter_training/*.log
+
+# Check GPU usage
+nvidia-smi -l 1
+
+# Monitor system
+htop
+```
+
+## Cleanup
+
+```bash
+# Terminate instance
+aws ec2 terminate-instances --instance-ids $INSTANCE_ID
+
+# Delete security group
+aws ec2 delete-security-group --group-name cs627-training
+
+# Clean up S3 (careful!)
+aws s3 rm s3://your-bucket/temp/ --recursive
 ```
 
 ## Troubleshooting
 
-### CUDA Out of Memory
-Reduce batch size: `BATCH_SIZE=16` environment variable
-
-### Disk Space
-Ensure 200GB+ storage. Models require ~3GB, training data ~60GB.
-
-## Cost Optimization
-
-- Use spot instances for up to 70% savings
-- Set up auto-shutdown to prevent runaway costs
-- g5.2xlarge is a good budget alternative
-
-## Training Performance
-
-| Task | Time on A10G |
-|------|--------------|
-| Single Epoch | 5-7 min |
-| Full Training (30 epochs) | 3-4 hours |
-
----
-
-## S3 Data Staging (Recommended)
-
-Using S3 for training data eliminates slow rsync transfers from your local machine.
-
-### One-Time Setup
-
-#### 1. Create S3 Bucket
-
+### "No CUDA devices"
 ```bash
-# Via AWS CLI
-aws s3 mb s3://cs627-svs-data --region us-east-1
+# Check GPU
+nvidia-smi
 
-# Enable versioning (for weight history/rollback)
-aws s3api put-bucket-versioning \
-  --bucket cs627-svs-data \
-  --versioning-configuration Status=Enabled
+# Reinstall CUDA drivers
+sudo apt install nvidia-driver-525
+sudo reboot
 ```
 
-#### 2. Upload Training Data
-
+### "Out of memory"
 ```bash
-# Upload training data (~3.3GB) - run once from your local machine
-aws s3 sync data/cmumosi/ s3://cs627-svs-data/data/cmumosi/ --exclude "videos/*"
-
-# Upload current OptimalWeights
-aws s3 sync OptimalWeights/ s3://cs627-svs-data/OptimalWeights/
+# Reduce batch size
+BATCH_SIZE=16 make tokens
+BATCH_SIZE=128 make train
 ```
 
-#### 3. Create IAM Role for EC2
-
-Create an IAM role named `cs627-training-role` with this policy:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
-      "Resource": [
-        "arn:aws:s3:::cs627-svs-data",
-        "arn:aws:s3:::cs627-svs-data/*"
-      ]
-    }
-  ]
-}
-```
-
-#### 4. Launch EC2 with IAM Role
-
-When launching via AWS Console:
-1. Choose Deep Learning AMI
-2. In "Advanced details" → IAM instance profile → select `cs627-training-role`
-3. No AWS credentials needed in code (uses instance metadata)
-
-### Training with S3
-
+### "Connection timeout"
 ```bash
-# On EC2 instance
-docker pull watsonwb/cs627-svs:latest
+# Check security group
+aws ec2 describe-security-groups --group-names cs627-training
 
-# Run training (data auto-downloads from S3)
-docker run --gpus all \
-  -e USE_S3=1 \
-  -e S3_BUCKET=cs627-svs-data \
-  -v $(pwd)/CandidateWeights:/workspace/CandidateWeights \
-  -v $(pwd)/training_reports:/workspace/training_reports \
-  watsonwb/cs627-svs:latest \
-  python src/Training/train_encoders.py
+# Check instance status
+aws ec2 describe-instance-status --instance-ids $INSTANCE_ID
 ```
 
-### Promoting Weights to S3
+## Next Steps
 
-After training, evaluate and promote weights:
-
-```bash
-# Review training results
-cat training_reports/training_metrics.json
-
-# Promote best weights to S3 OptimalWeights
-python scripts/cloud/promote_weights_s3.py \
-  --best \
-  --bucket cs627-svs-data
-```
-
-### Sync Weights to Local Machine
-
-```bash
-# Download from S3
-python scripts/cloud/promote_weights_s3.py --download --bucket cs627-svs-data
-
-# Or via AWS CLI
-aws s3 sync s3://cs627-svs-data/OptimalWeights/ OptimalWeights/
-```
-
-### S3 Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `USE_S3` | `0` | Set to `1` to enable S3 data loading |
-| `S3_BUCKET` | `cs627-svs-data` | S3 bucket name |
-| `S3_REGION` | `us-east-1` | AWS region |
-| `S3_DATA_PREFIX` | `data/cmumosi/` | S3 prefix for training data |
-| `S3_WEIGHTS_PREFIX` | `OptimalWeights/` | S3 prefix for weights |
-
-### Time Comparison
-
-| Method | Data Transfer Time |
-|--------|-------------------|
-| rsync from local | 35+ min (depends on connection) |
-| S3 on EC2 | 1-2 min (10+ Gbps internal) |
+- [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [DOCKER.md](DOCKER.md) - Container usage
+- [SETUP.md](SETUP.md) - Local setup

@@ -1,309 +1,291 @@
-# Comprehensive Training Guide
+# Training Guide
 
-This guide covers the complete token-based training workflow for the CS627 Semantic-Vector Space project.
+Complete training workflow for the CS627 Semantic-Vector Space project.
 
 ## Overview
 
-The new training paradigm uses a two-step approach:
-1. **Pre-generate tokens** from frozen encoders (one-time cost)
-2. **Train adapters** using tokens (10-100x faster iteration)
+Training uses a two-step approach:
+1. **Pre-generate tokens** from frozen encoders (one-time, ~30 min)
+2. **Train adapters** using tokens (fast iteration, ~15 min)
 
-This approach dramatically reduces training time and resource requirements while maintaining model quality.
+This approach is 10-100x faster than end-to-end training.
 
-## Prerequisites
+## Step 1: Token Pre-generation
 
-### Local Setup
-- Python 3.8+
-- PyTorch 2.0+ (stable version, not 2.9.0)
-- CUDA 11.8+ (for GPU training)
-- 16GB+ RAM
-- 50GB+ free disk space
-
-### Docker Setup (Recommended)
-- Docker 20.10+
-- Docker Compose 1.29+
-- NVIDIA Docker runtime (for GPU)
-
-## Step 1: Data Preparation
-
-### Download CMU-MOSI Dataset
+### Basic Usage
 
 ```bash
-# Install CMU-MultimodalSDK
-git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
-cd CMU-MultimodalSDK && pip install .
+# Using Make
+make tokens
 
-# Download MOSI metadata
-python -c "from src.Training.Data_Wrangling.mosi_dataset import download_mosi; download_mosi('data/cmumosi/mosi/')"
-```
-
-### Extract Audio and Video
-
-```bash
-# Download and extract test videos
-python scripts/data_wrangling/download_test_videos.py
-python scripts/data_wrangling/extract_test_segments.py
-```
-
-## Step 2: Token Pre-generation
-
-Pre-generate encoder outputs for all training data. This step runs once and creates reusable tokens.
-
-### Using Docker (Recommended)
-
-```bash
-# Auto-detect GPU and generate tokens
-./docker/pregenerate.sh
-
-# Or use docker-compose
+# Using Docker
 docker-compose up pregenerate-tokens
 
-# Force CPU mode if needed
-./docker/pregenerate.sh --cpu --batch-size 16
-```
-
-### Local Execution
-
-```bash
-# Generate tokens with default settings
+# Direct Python
 python src/Training/pregenerate_tokens.py
-
-# Custom configuration
-BATCH_SIZE=16 DEVICE=cpu python src/Training/pregenerate_tokens.py
 ```
 
-### Output
+### Batch Size Recommendations
 
-Tokens are saved to `data/pregenerated_tokens/mosi/`:
-- `train_tokens.h5` - Training set (70%)
-- `val_tokens.h5` - Validation set (15%)
-- `test_tokens.h5` - Test set (15%)
-- `metadata.json` - Token statistics
+| GPU VRAM | Batch Size | Time |
+|----------|------------|------|
+| CPU only | 4-8 | ~2 hours |
+| 8GB | 16 | ~45 min |
+| 16GB | 32 | ~30 min |
+| 24GB+ | 64 | ~20 min |
 
-Each HDF5 file contains:
-- Encoder outputs for each modality (1024-dim vectors)
-- Segment IDs and labels
-- Compressed for efficient storage (~100MB per file)
-
-## Step 3: Adapter Training
-
-Train lightweight MLP adapters using pre-generated tokens.
-
-### Using Docker
+### Custom Configuration
 
 ```bash
-# Train encoder adapters
-./docker/train-adapters.sh --mode encoder
+# Small batch for limited memory
+BATCH_SIZE=8 python src/Training/pregenerate_tokens.py
 
-# Train decoder adapters
-./docker/train-adapters.sh --mode decoder
+# Specific data paths
+MOSI_DATA_PATH=/path/to/mosi \
+AUDIO_DIR=/path/to/audio \
+VIDEO_DIR=/path/to/frames \
+python src/Training/pregenerate_tokens.py
+```
 
-# Custom settings
-./docker/train-adapters.sh --batch-size 512 --epochs 100 --lr 0.0001
+### Output Files
 
-# Use docker-compose
+Tokens saved to `data/pregenerated_tokens/mosi/`:
+- `train_tokens.h5` - 1547 samples (~1.5GB)
+- `val_tokens.h5` - 331 samples (~300MB)  
+- `test_tokens.h5` - 331 samples (~300MB)
+- `metadata.json` - Statistics and configuration
+
+## Step 2: Adapter Training
+
+### Encoder Adapters (Contrastive Learning)
+
+```bash
+# Using Make
+make train
+
+# Using Docker
 docker-compose up train-adapters-gpu
+
+# Direct Python
+python src/Training/train_adapters.py --mode encoder
 ```
 
-### Local Execution
+### Decoder Adapters (Reconstruction)
 
 ```bash
-# Train encoder adapters (contrastive learning)
-python src/Training/train_adapters.py --mode encoder
-
-# Train decoder adapters (reconstruction)
+# Train decoders
 python src/Training/train_adapters.py --mode decoder
 
-# Custom hyperparameters
+# With custom parameters
 python src/Training/train_adapters.py \
-  --mode encoder \
-  --epochs 100 \
-  --batch-size 512 \
-  --lr 0.0001
+    --mode decoder \
+    --epochs 100 \
+    --batch-size 128 \
+    --lr 0.0005
 ```
 
-### Training Modes
+### Training Parameters
 
-**Encoder Mode** (Contrastive Learning):
-- Aligns different modalities in semantic space
-- Uses InfoNCE loss with temperature scaling
-- Outputs: Adapter weights for each encoder
+| Parameter | Default | Recommended Range |
+|-----------|---------|-------------------|
+| Batch Size | 256 | 128-512 |
+| Learning Rate | 0.001 | 0.0001-0.01 |
+| Epochs | 50 | 30-100 |
+| Hidden Size | 512 | 256-1024 |
+| Layers | 2 | 1-4 |
 
-**Decoder Mode** (Reconstruction):
-- Learns to reconstruct modality features from semantic vectors
-- Uses MSE + cosine similarity loss
-- Outputs: Adapter weights for each decoder
+### Memory Requirements
 
-## Step 4: Ablation Studies
+| Mode | GPU Memory | Batch Size |
+|------|------------|------------|
+| Token Generation | 8-12GB | 16-32 |
+| Adapter Training | 2-4GB | 256-512 |
+| CPU Training | RAM 8GB+ | 64-128 |
 
-Run systematic experiments to find optimal adapter configurations.
+## Step 3: Ablation Studies
 
-### Using Docker
-
-```bash
-# Run recommended configurations
-docker-compose up ablation-study
-
-# Or use command line
-docker run --gpus all \
-  -v $(pwd)/data:/workspace/data \
-  -v $(pwd)/Results:/workspace/Results \
-  watsonwb/cs627-svs:gpu \
-  python src/Experiments/run_ablation.py --config recommended
-```
-
-### Local Execution
+### Run Recommended Configurations
 
 ```bash
-# Test recommended configurations
+# Using CLI
+python cli.py ablation --configs recommended
+
+# Direct Python
 python src/Experiments/run_ablation.py --config recommended
-
-# Full grid search
-python src/Experiments/run_ablation.py --config grid_search
-
-# Custom configuration file
-python src/Experiments/run_ablation.py --config-file configs/custom.json
 ```
 
-### Available Studies
+### Available Configurations
 
-- `recommended` - Best known configurations
-- `grid_search` - All combinations of hyperparameters
-- `random_search` - Random sampling of configurations
-- `progressive_depth` - Varying number of layers
-- `activation_study` - Different activation functions
-- `dropout_study` - Dropout rate optimization
+1. **recommended** - 3 best configs from preliminary testing
+2. **grid_search** - Full parameter sweep (192 configs)
+3. **random_search** - Random sampling (20 configs)
+4. **progressive_depth** - Test layer depth impact
+5. **activation_study** - Compare activation functions
+6. **dropout_study** - Test dropout rates
 
-## Performance Optimization
+### Custom Ablation Config
 
-### GPU Acceleration
+Create `configs/ablation/custom.json`:
+```json
+{
+  "configs": [
+    {
+      "hidden_size": 256,
+      "num_layers": 2,
+      "activation": "relu",
+      "dropout": 0.1
+    },
+    {
+      "hidden_size": 512,
+      "num_layers": 3,
+      "activation": "gelu",
+      "dropout": 0.2
+    }
+  ],
+  "epochs": 30,
+  "batch_size": 256
+}
+```
 
+Run custom config:
 ```bash
-# Enable mixed precision training (2x speedup)
-USE_AMP=1 python src/Training/train_adapters.py
-
-# Larger batch sizes for GPU
-BATCH_SIZE=512 python src/Training/train_adapters.py
+python src/Experiments/run_ablation.py --config-file configs/ablation/custom.json
 ```
+
+### Interpreting Results
+
+Results saved to `Results/ablation/`:
+- `ablation_YYYYMMDD_HHMMSS.json` - All metrics
+- `best_config.json` - Best performing configuration
+
+Key metrics to evaluate:
+- **val_loss** - Lower is better (< 0.5 good)
+- **recall@1** - Higher is better (> 50% good)
+- **recall@5** - Higher is better (> 80% good)
+
+## Advanced Training
 
 ### Multi-GPU Training
 
 ```bash
-# Use all available GPUs
-docker run --gpus all ...
+# Using DataParallel (single node)
+CUDA_VISIBLE_DEVICES=0,1 python src/Training/train_adapters.py
 
-# Specific GPUs
-docker run --gpus '"device=0,1"' ...
+# Note: Currently single-GPU optimized
 ```
 
-### Memory Optimization
+### Mixed Precision Training
 
 ```bash
-# Gradient accumulation for larger effective batch size
-GRADIENT_ACCUMULATION=4 BATCH_SIZE=64 python src/Training/train_adapters.py
-
-# Reduce token generation batch size
-BATCH_SIZE=8 python src/Training/pregenerate_tokens.py
+# Enable AMP (automatic mixed precision)
+USE_AMP=1 python src/Training/train_adapters.py
 ```
+
+### Gradient Accumulation
+
+```bash
+# Simulate larger batch size
+GRADIENT_ACCUMULATION=4 \
+BATCH_SIZE=64 \
+python src/Training/train_adapters.py
+```
+
+### Resume Training
+
+```bash
+# Resume from checkpoint (not yet implemented)
+python src/Training/train_adapters.py --resume OptimalWeights/checkpoint.pth
+```
+
+## Monitoring Training
+
+### View Progress
+
+```bash
+# Check training status
+make status
+
+# Monitor logs
+tail -f Results/adapter_training/latest.log
+
+# Using TensorBoard (if configured)
+tensorboard --logdir Results/tensorboard
+```
+
+### Expected Training Curves
+
+Encoder adapters (contrastive):
+- Loss: 2.0 → 0.3-0.5
+- Recall@1: 10% → 50-70%
+- Recall@5: 30% → 80-90%
+
+Decoder adapters (reconstruction):
+- MSE Loss: 1.0 → 0.05-0.1
+- Cosine Similarity: 0.5 → 0.85-0.95
+
+## Optimizing Performance
+
+### Speed Optimization
+
+1. **Increase batch size**: Tokens are small, use 256-512
+2. **Enable AMP**: `USE_AMP=1` for mixed precision
+3. **Use gradient accumulation**: Simulate larger batches
+4. **Pre-load to RAM**: Set cache_size in token dataset
+
+### Quality Optimization
+
+1. **Learning rate schedule**: Start with 0.001, decay by 0.1
+2. **Early stopping**: Stop if val_loss doesn't improve for 10 epochs
+3. **Ensemble**: Train multiple seeds, average predictions
+4. **Data augmentation**: Add noise to tokens during training
 
 ## Troubleshooting
 
-### PyTorch Segmentation Fault
-
-**Issue**: Python crashes with "Segmentation fault: 11"
-
-**Solution**: Use Docker or downgrade PyTorch:
+### "No tokens found"
 ```bash
-pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0
+# Generate tokens first
+make tokens
 ```
 
-### No Tokens Found
-
-**Issue**: Adapter training fails with "No pre-generated tokens found"
-
-**Solution**: Run token pre-generation first:
+### "CUDA out of memory"
 ```bash
-./docker/pregenerate.sh
+# Reduce batch size
+BATCH_SIZE=128 python src/Training/train_adapters.py
 ```
 
-### CUDA Out of Memory
-
-**Issue**: GPU memory error during training
-
-**Solutions**:
-1. Reduce batch size: `BATCH_SIZE=16`
-2. Use CPU mode: `DEVICE=cpu`
-3. Enable gradient accumulation
-4. Use mixed precision: `USE_AMP=1`
-
-### Dataset Not Found
-
-**Issue**: "Dataset files not found" error
-
-**Solution**: Download and extract MOSI data:
+### "Training loss not decreasing"
 ```bash
-# Download metadata
-SKIP_DOWNLOAD=0 python -c "from src.Training.Data_Wrangling.mosi_dataset import download_mosi; download_mosi('data/cmumosi/mosi/')"
+# Lower learning rate
+python src/Training/train_adapters.py --lr 0.0001
 
-# Extract segments
-python scripts/data_wrangling/extract_all_segments.py
+# Check data normalization
+python -c "import h5py; f=h5py.File('data/pregenerated_tokens/mosi/train_tokens.h5'); print(f['text_base'][:].mean(), f['text_base'][:].std())"
 ```
 
-## Configuration Reference
+### "Val metrics plateauing early"
+```bash
+# Increase model capacity
+ADAPTER_HIDDEN_SIZE=1024 ADAPTER_LAYERS=3 python src/Training/train_adapters.py
 
-### Environment Variables
+# Add dropout
+python src/Training/train_adapters.py --dropout 0.2
+```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEVICE` | `cuda`/`cpu` | Training device |
-| `BATCH_SIZE` | `32` | Token generation batch size |
-| `ADAPTER_BATCH_SIZE` | `256` | Adapter training batch size |
-| `LEARNING_RATE` | `0.001` | Learning rate |
-| `EPOCHS` | `50` | Training epochs |
-| `ADAPTER_HIDDEN_SIZE` | `512` | MLP hidden units |
-| `ADAPTER_LAYERS` | `2` | Number of hidden layers |
-| `USE_AMP` | `1` | Mixed precision training |
-| `TOKEN_DIR` | `data/pregenerated_tokens/mosi` | Token location |
+## Output Files
 
-### File Locations
+Trained weights saved to `OptimalWeights/`:
+- `text_adapter_weights.pth`
+- `audio_adapter_weights.pth`
+- `tone_adapter_weights.pth`
+- `image_adapter_weights.pth`
+- `text_decoder_adapter_weights.pth` (decoder mode)
 
-| File/Directory | Description |
-|---------------|-------------|
-| `data/pregenerated_tokens/` | Pre-generated tokens |
-| `OptimalWeights/` | Trained adapter weights |
-| `Results/adapter_training/` | Training metrics |
-| `Results/ablation/` | Ablation study results |
-| `configs/ablation/` | Ablation configurations |
-
-## Best Practices
-
-1. **Always use Docker** for reproducible environments
-2. **Pre-generate tokens once**, reuse for all experiments
-3. **Start with recommended configurations** from ablation studies
-4. **Use larger batch sizes** for adapter training (256-512)
-5. **Enable mixed precision** on GPUs with Tensor Cores
-6. **Monitor validation metrics** to prevent overfitting
-7. **Save checkpoints regularly** for long training runs
-
-## Performance Benchmarks
-
-| Metric | Old Pipeline | Token-Based | Improvement |
-|--------|-------------|-------------|-------------|
-| Token Generation | - | 30 min (once) | - |
-| Adapter Training | 3 hours | 15 min | **12x faster** |
-| GPU Memory | 12GB | 2GB | **6x reduction** |
-| Batch Size | 32 | 256 | **8x larger** |
-| Iteration Time | 2-3 hours | 10-15 min | **10x faster** |
+Training history saved to `Results/adapter_training/`:
+- `encoder_training_YYYYMMDD_HHMMSS.json`
+- `decoder_training_YYYYMMDD_HHMMSS.json`
 
 ## Next Steps
 
-1. Run ablation studies to find optimal adapter architecture
-2. Fine-tune on downstream tasks
-3. Evaluate on standard benchmarks
-4. Deploy trained models
-
-For more details, see:
-- [Training README](../src/Training/README.md)
-- [Docker Guide](../DOCKER.md)
-- [AWS Setup](../AWS_SETUP.md)
-- [Evaluation Guide](../EVALUATION.md)
+1. **Evaluate models**: `make evaluate`
+2. **Run inference**: See [Inference Guide](../src/Inference/README.md)
+3. **Deploy models**: See [AWS_SETUP.md](../AWS_SETUP.md)
