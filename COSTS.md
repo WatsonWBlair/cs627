@@ -24,7 +24,7 @@
 |-----------|--------------|------|
 | Instance | 16 vCPUs, 64GB RAM | $1.62/hour |
 | GPU | A10G (24GB VRAM) | Included |
-| Storage | 200GB gp3 SSD | $16/month |
+| Storage | 100GB gp3 SSD | $8/month |
 
 ### Alternative Options
 | Instance | GPU | VRAM | Cost/Hour | Use Case |

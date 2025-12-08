@@ -116,11 +116,11 @@ fi
 
 # Instance type configurations
 declare -A INSTANCE_INFO
-INSTANCE_INFO["g5.4xlarge"]="A10G 24GB|~2.5-3hr|$1.63/hr|Recommended"
-INSTANCE_INFO["g5.8xlarge"]="A10G 24GB|~2-3hr|$2.45/hr|High Memory"
-INSTANCE_INFO["p3.2xlarge"]="V100 16GB|~2-2.5hr|$3.06/hr|Fastest"
-INSTANCE_INFO["g4dn.xlarge"]="T4 16GB|~5-7hr|$0.526/hr|Budget"
-INSTANCE_INFO["g4dn.2xlarge"]="T4 16GB|~5-7hr|$0.752/hr|Budget+"
+INSTANCE_INFO["g5.4xlarge"]="A10G 24GB|~50min|$1.63/hr|Recommended"
+INSTANCE_INFO["g5.8xlarge"]="A10G 24GB|~45min|$2.45/hr|High Memory"
+INSTANCE_INFO["p3.2xlarge"]="V100 16GB|~40min|$3.06/hr|Fastest"
+INSTANCE_INFO["g4dn.xlarge"]="T4 16GB|~90min|$0.526/hr|Budget"
+INSTANCE_INFO["g4dn.2xlarge"]="T4 16GB|~80min|$0.752/hr|Budget+"
 
 # Display launch configuration
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -193,7 +193,15 @@ echo "SSH into the instance and run:"
 echo "  cd cs627"
 echo "  git clone https://github.com/WatsonWBlair/cs627.git ."
 echo "  pip install -r requirements.txt"
-echo "  python src/Training/train_encoders.py"
+echo ""
+echo "Token-based training workflow:"
+echo "  # Phase 1: Generate tokens (30 min) or download from S3"
+echo "  python src/Training/pregenerate_tokens.py"
+echo "  # OR: aws s3 cp s3://your-bucket/tokens/ data/pregenerated_tokens/ --recursive"
+echo ""
+echo "  # Phase 2: Train adapters (20 min total)"
+echo "  python src/Training/train_adapters.py --mode encoder"
+echo "  python src/Training/train_adapters.py --mode decoder"
 EOF
 )
 
@@ -214,7 +222,7 @@ if [ -n "$IAM_ROLE" ]; then
     LAUNCH_CMD="$LAUNCH_CMD --iam-instance-profile Name=$IAM_ROLE"
 fi
 
-# Block device mapping (increase root volume to 100GB)
+# Block device mapping (100GB for token-based training)
 LAUNCH_CMD="$LAUNCH_CMD --block-device-mappings"
 LAUNCH_CMD="$LAUNCH_CMD 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3,DeleteOnTermination=true}'"
 
@@ -310,8 +318,10 @@ echo ""
 echo -e "${BLUE}5. Upload preprocessed data:${NC}"
 echo -e "   ./scripts/cloud/upload_to_cloud.sh"
 echo ""
-echo -e "${BLUE}6. Start training (on instance):${NC}"
-echo -e "   python src/Training/train_encoders.py"
+echo -e "${BLUE}6. Start training (on instance - token-based):${NC}"
+echo -e "   python src/Training/pregenerate_tokens.py  # Phase 1: tokens (30 min)"
+echo -e "   python src/Training/train_adapters.py --mode encoder  # Phase 2: adapters (10 min)"
+echo -e "   python src/Training/train_adapters.py --mode decoder  # Phase 2: adapters (10 min)"
 echo ""
 echo -e "${BLUE}7. Download results (after training):${NC}"
 echo -e "   ./scripts/cloud/download_from_cloud.sh"
@@ -324,15 +334,13 @@ if [ -n "${INSTANCE_INFO[$INSTANCE_TYPE]}" ]; then
     IFS='|' read -r gpu time cost note <<< "${INSTANCE_INFO[$INSTANCE_TYPE]}"
     echo -e "  Duration: ${GREEN}$time${NC}"
     echo -e "  Hourly Rate: ${GREEN}$cost${NC}"
-    # Calculate approximate cost (mid-range estimate)
-    if [[ "$time" =~ ([0-9.]+)-([0-9.]+)hr ]]; then
-        LOW_HOURS="${BASH_REMATCH[1]}"
-        HIGH_HOURS="${BASH_REMATCH[2]}"
+    # Calculate approximate cost for new token-based training
+    if [[ "$time" =~ ([0-9]+)min ]]; then
+        MINUTES="${BASH_REMATCH[1]}"
         if [[ "$cost" =~ \$([0-9.]+) ]]; then
             RATE="${BASH_REMATCH[1]}"
-            LOW_COST=$(echo "$LOW_HOURS * $RATE" | bc -l)
-            HIGH_COST=$(echo "$HIGH_HOURS * $RATE" | bc -l)
-            echo -e "  Total Cost: ${GREEN}\$$(printf '%.2f' $LOW_COST)-\$$(printf '%.2f' $HIGH_COST)${NC}"
+            TOTAL_COST=$(echo "$MINUTES * $RATE / 60" | bc -l)
+            echo -e "  Total Cost: ${GREEN}\$$(printf '%.2f' $TOTAL_COST)${NC}"
         fi
     fi
 fi
