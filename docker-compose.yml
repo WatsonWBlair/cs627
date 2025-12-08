@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Token Pre-generation Service
   pregenerate-tokens:
-    image: watsonblair/cs627-svs:gpu
+    image: watsonwb/cs627-svs:gpu
     build:
       context: .
       dockerfile: Dockerfile
@@ -31,7 +31,7 @@ services:
 
   # Adapter Training Service (GPU)
   train-adapters-gpu:
-    image: watsonblair/cs627-svs:gpu
+    image: watsonwb/cs627-svs:gpu
     build:
       context: .
       dockerfile: Dockerfile
@@ -63,7 +63,7 @@ services:
 
   # Adapter Training Service (CPU)
   train-adapters-cpu:
-    image: watsonblair/cs627-svs:cpu
+    image: watsonwb/cs627-svs:cpu
     build:
       context: .
       dockerfile: Dockerfile.cpu
@@ -87,7 +87,7 @@ services:
 
   # Ablation Study Service
   ablation-study:
-    image: watsonblair/cs627-svs:gpu
+    image: watsonwb/cs627-svs:gpu
     build:
       context: .
       dockerfile: Dockerfile
@@ -114,7 +114,7 @@ services:
 
   # Development Service with Jupyter Lab
   dev:
-    image: watsonblair/cs627-svs:dev
+    image: watsonwb/cs627-svs:dev
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -143,7 +143,7 @@ services:
 
   # Evaluation Service
   evaluate:
-    image: watsonblair/cs627-svs:gpu
+    image: watsonwb/cs627-svs:gpu
     container_name: cs627-evaluate
     environment:
       - DEVICE=${DEVICE:-cuda}
@@ -164,7 +164,7 @@ services:
 
   # Data preprocessing service
   preprocess:
-    image: watsonblair/cs627-svs:cpu
+    image: watsonwb/cs627-svs:cpu
     container_name: cs627-preprocess
     volumes:
       - ./data:/workspace/data
@@ -176,7 +176,7 @@ services:
 
   # Smoke test service
   test:
-    image: watsonblair/cs627-svs:gpu
+    image: watsonwb/cs627-svs:gpu
     container_name: cs627-test
     environment:
       - DEVICE=${DEVICE:-cuda}

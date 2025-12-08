@@ -135,7 +135,7 @@ When launching via AWS Console:
 
 ```bash
 # On EC2 instance
-docker pull watsonblair/cs627-svs:latest
+docker pull watsonwb/cs627-svs:latest
 
 # Run training (data auto-downloads from S3)
 docker run --gpus all \
@@ -143,7 +143,7 @@ docker run --gpus all \
   -e S3_BUCKET=cs627-svs-data \
   -v $(pwd)/CandidateWeights:/workspace/CandidateWeights \
   -v $(pwd)/training_reports:/workspace/training_reports \
-  watsonblair/cs627-svs:latest \
+  watsonwb/cs627-svs:latest \
   python src/Training/train_encoders.py
 ```
 

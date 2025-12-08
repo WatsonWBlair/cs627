@@ -27,20 +27,65 @@ This project implements an encoder-decoder architecture that aligns multiple mod
 
 ## Quick Start
 
+### Instant Demo (5 minutes)
+
+```bash
+# Run quickstart script - sets up environment and runs mini training
+./quickstart.sh
+
+# Or use Make/CLI for common tasks
+make setup          # Install dependencies
+make tokens         # Generate encoder tokens
+make train          # Train adapters
+make evaluate       # Run evaluation
+
+# Advanced workflows with Python CLI
+python cli.py pipeline          # Full training pipeline
+python cli.py ablation          # Hyperparameter search
+python cli.py benchmark         # Run benchmarks
+```
+
+### Command Interfaces
+
+We provide three ways to interact with the project:
+
+1. **Make** (Simple, cross-platform):
+   ```bash
+   make help           # Show all commands
+   make pipeline       # Run complete pipeline
+   make status         # Check training status
+   ```
+
+2. **Python CLI** (Advanced workflows):
+   ```bash
+   python cli.py --help                    # Show all commands
+   python cli.py pipeline --config config.json  # Custom pipeline
+   python cli.py encode --text "Hello"     # Encode inputs
+   ```
+
+3. **Docker Compose** (Production):
+   ```bash
+   docker-compose up pregenerate-tokens    # Generate tokens
+   docker-compose up train-adapters-gpu    # Train on GPU
+   docker-compose up dev                   # Jupyter environment
+   ```
+
+**Windows users**: Use `make.bat` instead of `make` for equivalent functionality.
+
 ### Docker Setup (Recommended)
 
 ```bash
 # Pull and run with GPU support
-docker pull watsonblair/cs627-svs:latest
-docker run --gpus all -v ./data:/workspace/data watsonblair/cs627-svs:latest
+docker pull watsonwb/cs627-svs:latest
+docker run --gpus all -v ./data:/workspace/data watsonwb/cs627-svs:latest
 
 # Or use helper scripts
 ./docker/train.sh      # Auto-detects GPU and runs training
 ./docker/dev.sh        # Launches Jupyter Lab on http://localhost:8888
 
 # CPU-only version
-docker pull watsonblair/cs627-svs:cpu
-docker run -v ./data:/workspace/data watsonblair/cs627-svs:cpu
+docker pull watsonwb/cs627-svs:cpu
+docker run -v ./data:/workspace/data watsonwb/cs627-svs:cpu
 ```
 
 See [Docker Documentation](DOCKER.md) for detailed container usage.
@@ -48,32 +93,20 @@ See [Docker Documentation](DOCKER.md) for detailed container usage.
 ### Local Setup
 
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
+# Quick setup with Make
+make setup          # Installs all dependencies
+make prepare-data   # Downloads and extracts data
+make tokens         # Pre-generates tokens
+make train          # Trains adapters
 
-# Install CMU-MultimodalSDK for dataset access
+# Or manual setup
+pip install -r requirements.txt
 git clone https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK.git
 cd CMU-MultimodalSDK && pip install .
 
-# Download and extract MOSI videos
-python scripts/data_wrangling/download_test_videos.py
-python scripts/data_wrangling/extract_test_segments.py
-
 # Token-Based Training (10-100x faster)
-# Step 1: Pre-generate encoder tokens (run once)
-python src/Training/pregenerate_tokens.py
-
-# Step 2: Train adapter MLPs (fast iteration)
-python src/Training/train_adapters.py --mode encoder
-```
-
-**Using Docker (Recommended - avoids environment issues):**
-```bash
-# Step 1: Pre-generate tokens
-docker-compose up pregenerate-tokens
-
-# Step 2: Train adapters
-docker-compose up train-adapters-gpu
+python src/Training/pregenerate_tokens.py   # Generate tokens once
+python src/Training/train_adapters.py       # Train adapters
 ```
 
 See [Training README](src/Training/README.md) for detailed instructions.
@@ -195,11 +228,12 @@ cs627/
 │   │   │   └── vec_to_waveform.py  # Vec_to_Audio (TTS) - EXPERIMENTAL
 │   │   └── README.md          # How to add new decoders
 │   ├── Training/              # Training infrastructure
-│   │   ├── encoder_trainers.py     # MoCo contrastive learning
-│   │   ├── decoder_trainers.py     # Dual-loss training
-│   │   ├── train_encoders.py   # Main training script (raw data)
+│   │   ├── pregenerate_tokens.py   # Token pre-generation
+│   │   ├── train_adapters.py       # Adapter-only training
+│   │   ├── adapter_trainer.py      # Lightweight trainer
 │   │   ├── Data_Wrangling/
-│   │   │   └── mosi_dataset.py     # CMU-MOSI dataset loader
+│   │   │   ├── mosi_dataset.py     # CMU-MOSI dataset loader
+│   │   │   └── token_dataset.py    # Pre-generated token loader
 │   │   └── README.md          # Training documentation
 │   ├── Inference/             # Inference applications
 │   │   ├── Chatbot/           # Seq2seq chatbot in semantic space
@@ -226,6 +260,10 @@ cs627/
 ├── data/                      # Dataset storage (not in git)
 ├── CLAUDE.md                  # Project guide for Claude Code
 ├── requirements.txt           # Python dependencies
+├── Makefile                   # Task automation (Unix/Linux/Mac)
+├── make.bat                   # Task automation (Windows)
+├── cli.py                     # Advanced CLI interface
+├── quickstart.sh              # Quick setup and demo
 └── README.md                  # This file
 ```
 

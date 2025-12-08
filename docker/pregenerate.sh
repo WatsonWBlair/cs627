@@ -89,7 +89,7 @@ if [ "$USE_COMPOSE" = true ]; then
     docker-compose up pregenerate-tokens
 else
     # Pull or build image
-    IMAGE_NAME="watsonblair/cs627-svs:${IMAGE_TAG}"
+    IMAGE_NAME="watsonwb/cs627-svs:${IMAGE_TAG}"
     
     echo "Using image: ${IMAGE_NAME}"
     

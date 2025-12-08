@@ -6,7 +6,7 @@ This project provides Docker containers for the CS627 Semantic-Vector Space mult
 
 ## Available Images
 
-All images are available on Docker Hub at: `watsonblair/cs627-svs`
+All images are available on Docker Hub at: `watsonwb/cs627-svs`
 
 | Tag | Description | Use Case | Size |
 |-----|-------------|----------|------|
@@ -28,14 +28,14 @@ All images are available on Docker Hub at: `watsonblair/cs627-svs`
 
 ```bash
 # Pull the latest GPU image
-docker pull watsonblair/cs627-svs:latest
+docker pull watsonwb/cs627-svs:latest
 
 # Step 1: Generate tokens (run once)
 docker run --gpus all \
   -v $(pwd)/data:/workspace/data \
   -v $(pwd)/src:/workspace/src \
   -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
-  watsonblair/cs627-svs:latest \
+  watsonwb/cs627-svs:latest \
   python src/Training/pregenerate_tokens.py
 
 # Step 2: Train adapters (fast training)
@@ -44,7 +44,7 @@ docker run --gpus all \
   -v $(pwd)/src:/workspace/src \
   -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
   -v $(pwd)/Results:/workspace/Results \
-  watsonblair/cs627-svs:latest \
+  watsonwb/cs627-svs:latest \
   python src/Training/train_adapters.py --mode encoder
 
 # CPU version
@@ -52,13 +52,13 @@ docker run \
   -v $(pwd)/data:/workspace/data \
   -v $(pwd)/src:/workspace/src \
   -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
-  watsonblair/cs627-svs:cpu \
+  watsonwb/cs627-svs:cpu \
   python src/Training/train_adapters.py --mode encoder
 
 # Launch development environment
 docker run --gpus all -p 8888:8888 \
   -v $(pwd):/workspace \
-  watsonblair/cs627-svs:dev
+  watsonwb/cs627-svs:dev
 ```
 
 ## Using Helper Scripts
@@ -72,10 +72,10 @@ The `docker/` directory contains helper scripts for common operations:
 ./docker/build.sh
 
 # Images will be tagged as:
-# - watsonblair/cs627-svs:gpu
-# - watsonblair/cs627-svs:cpu
-# - watsonblair/cs627-svs:dev
-# - watsonblair/cs627-svs:latest (same as gpu)
+# - watsonwb/cs627-svs:gpu
+# - watsonwb/cs627-svs:cpu
+# - watsonwb/cs627-svs:dev
+# - watsonwb/cs627-svs:latest (same as gpu)
 ```
 
 ### Token-Based Training Workflow
@@ -210,7 +210,7 @@ Then run with docker-compose which will automatically load the .env file.
 nvidia-smi
 
 # Test GPU in container
-docker run --gpus all watsonblair/cs627-svs:gpu \
+docker run --gpus all watsonwb/cs627-svs:gpu \
   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
@@ -335,7 +335,7 @@ docker buildx create --use
 # Build for multiple platforms
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t watsonblair/cs627-svs:cpu \
+  -t watsonwb/cs627-svs:cpu \
   -f Dockerfile.cpu \
   --push .
 ```
@@ -367,7 +367,7 @@ See `.github/workflows/docker-publish.yml` for configuration.
 - Scan images for vulnerabilities:
 
 ```bash
-docker scan watsonblair/cs627-svs:latest
+docker scan watsonwb/cs627-svs:latest
 ```
 
 ## License
@@ -379,7 +379,7 @@ All Docker images include the MIT license and are free for educational and resea
 ## Support
 
 - GitHub Issues: https://github.com/WatsonWBlair/cs627/issues
-- Docker Hub: https://hub.docker.com/r/watsonblair/cs627-svs
+- Docker Hub: https://hub.docker.com/r/watsonwb/cs627-svs
 
 ## Contributing
 

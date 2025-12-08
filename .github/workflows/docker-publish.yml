@@ -14,7 +14,7 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 env:
-  DOCKER_HUB_USERNAME: watsonblair
+  DOCKER_HUB_USERNAME: watsonwb
   DOCKER_HUB_REPO: cs627-svs
   
 jobs:

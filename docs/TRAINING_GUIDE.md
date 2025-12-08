@@ -148,7 +148,7 @@ docker-compose up ablation-study
 docker run --gpus all \
   -v $(pwd)/data:/workspace/data \
   -v $(pwd)/Results:/workspace/Results \
-  watsonblair/cs627-svs:gpu \
+  watsonwb/cs627-svs:gpu \
   python src/Experiments/run_ablation.py --config recommended
 ```
 
