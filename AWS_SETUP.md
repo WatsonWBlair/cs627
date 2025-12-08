@@ -78,16 +78,24 @@ python src/Training/train_adapters.py
 ## AMI Selection
 
 ### Recommended AMI
-- **Name**: AWS Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.5.0
-- **AMI ID** (us-east-1): `ami-04f3e35dc85e9423b`
-- **AMI ID** (us-west-2): `ami-0c2d06d50ce30b442`
+- **Name**: AWS Deep Learning OSS Nvidia Driver AMI GPU PyTorch (Latest)
+- **Note**: AMI IDs change frequently. Use the command below to find the latest.
 
 ### Finding Latest AMI
 ```bash
+# Find latest PyTorch GPU AMI
 aws ec2 describe-images \
   --owners amazon \
   --filters "Name=name,Values=*Deep Learning AMI GPU PyTorch*" \
-  --query 'Images[0].ImageId'
+  --query 'sort_by(Images, &CreationDate)[-1].[ImageId,Name]' \
+  --output text
+
+# Alternative: Ubuntu 22.04 with NVIDIA drivers
+aws ec2 describe-images \
+  --owners 099720109477 \
+  --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64*" \
+  --query 'sort_by(Images, &CreationDate)[-1].ImageId' \
+  --output text
 ```
 
 ## Step-by-Step Setup
@@ -336,6 +344,6 @@ aws ec2 describe-instance-status --instance-ids $INSTANCE_ID
 
 ## Next Steps
 
-- [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [TRAINING_GUIDE.md](TRAINING_GUIDE.md) - Training workflows
 - [DOCKER.md](DOCKER.md) - Container usage
 - [SETUP.md](SETUP.md) - Local setup

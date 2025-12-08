@@ -227,6 +227,6 @@ sudo systemctl restart docker
 
 ## Next Steps
 
-- [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [TRAINING_GUIDE.md](TRAINING_GUIDE.md) - Training workflows
 - [AWS_SETUP.md](AWS_SETUP.md) - Cloud deployment
 - [SETUP.md](SETUP.md) - Local installation

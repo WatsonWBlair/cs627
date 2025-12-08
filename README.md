@@ -67,7 +67,7 @@ Raw Input → Frozen Encoder → Tokens → Trainable Adapter → Semantic Vecto
    python cli.py ablation --config recommended
    ```
 
-See [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) for detailed training instructions.
+See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed training instructions.
 
 ## Performance
 
@@ -96,7 +96,7 @@ cs627/
 ## Documentation
 
 - [SETUP.md](SETUP.md) - Installation and prerequisites
-- [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [TRAINING_GUIDE.md](TRAINING_GUIDE.md) - Training workflows
 - [DOCKER.md](DOCKER.md) - Container usage
 - [AWS_SETUP.md](AWS_SETUP.md) - Cloud deployment
 - [CLAUDE.md](CLAUDE.md) - AI assistant guide

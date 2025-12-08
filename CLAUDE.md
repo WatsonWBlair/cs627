@@ -37,9 +37,9 @@ from Decoders import Vec_to_Text, Vec_to_Audio, Vec_to_Image
 
 ### Adapter (`src/utils/Adapter.py`)
 
-MLP bridge between pretrained models and semantic space.
+Adapter (MLP) between pretrained models and semantic space.
 - Weights saved to: `OptimalWeights/{prefix}_weights.pth`
-- Default: 1024 dim, 2 hidden layers, 200 hidden units
+- Default: 1024 dim, 2 hidden layers, 512 hidden units
 
 ## Training (Token-Based)
 

@@ -298,4 +298,4 @@ ADAPTER_LAYERS=2
 3. **Run evaluation**: `make evaluate`
 4. **Ablation studies**: `python cli.py ablation`
 
-See [TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) for detailed training instructions.
+See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed training instructions.
