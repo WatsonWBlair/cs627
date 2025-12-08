@@ -103,7 +103,8 @@ class Image_to_Vec(torch.nn.Module):
         self,
         input_img: Union[Image, list],
         *,
-        device: str = DEVICE
+        device: str = DEVICE,
+        pregen: bool = False
     ) -> torch.Tensor:
         """
         Forward pass: image -> ViT encoder -> mean pooling -> adapter -> semantic vector
@@ -133,6 +134,10 @@ class Image_to_Vec(torch.nn.Module):
         hidden_states = encoder_outputs.last_hidden_state  # Shape: (batch, seq_len, hidden_dim)
         pooled_output = hidden_states.mean(dim=1)  # Shape: (batch, hidden_dim)
 
+        # If in pregeneration mode
+        if(pregen):
+            return pooled_output
+        
         # Convert to semantic vector via adapter
         semantic_vector = self.adapter(pooled_output)
 

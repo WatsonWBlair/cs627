@@ -1,26 +1,24 @@
 version: '3.8'
 
 services:
-  # GPU Training Service
-  train-gpu:
+  # Token Pre-generation Service
+  pregenerate-tokens:
     image: watsonblair/cs627-svs:gpu
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cs627-train-gpu
+    container_name: cs627-pregenerate
     environment:
-      - DEVICE=cuda
+      - DEVICE=${DEVICE:-cuda}
       - BATCH_SIZE=${BATCH_SIZE:-32}
-      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
-      - EPOCHS=${EPOCHS:-30}
-      - INSTANCE_ID=${HOSTNAME:-docker}
+      - OUTPUT_DIR=/workspace/data/pregenerated_tokens
+      - MOSI_DATA_PATH=/workspace/data/cmumosi/mosi/
+      - AUDIO_DIR=/workspace/data/cmumosi/audio/
+      - VIDEO_DIR=/workspace/data/cmumosi/frames/
     volumes:
       - ./data:/workspace/data
+      - ./src:/workspace/src
       - ./OptimalWeights:/workspace/OptimalWeights
-      - ./CandidateWeights:/workspace/CandidateWeights
-      - ./training_reports:/workspace/training_reports
-      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
-      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
     deploy:
       resources:
         reservations:
@@ -28,56 +26,31 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: python src/Training/train_encoders.py
-    restart: unless-stopped
+    command: python src/Training/pregenerate_tokens.py
+    restart: "no"
 
-  # CPU Training Service (for testing/development)
-  train-cpu:
-    image: watsonblair/cs627-svs:cpu
-    build:
-      context: .
-      dockerfile: Dockerfile.cpu
-    container_name: cs627-train-cpu
-    environment:
-      - DEVICE=cpu
-      - BATCH_SIZE=${BATCH_SIZE:-16}
-      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
-      - EPOCHS=${EPOCHS:-30}
-      - INSTANCE_ID=${HOSTNAME:-docker-cpu}
-    volumes:
-      - ./data:/workspace/data
-      - ./OptimalWeights:/workspace/OptimalWeights
-      - ./CandidateWeights:/workspace/CandidateWeights
-      - ./training_reports:/workspace/training_reports
-      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
-      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
-    command: python src/Training/train_encoders.py
-    restart: unless-stopped
-
-  # GPU Decoder Training Service
-  train-decoders-gpu:
+  # Adapter Training Service (GPU)
+  train-adapters-gpu:
     image: watsonblair/cs627-svs:gpu
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cs627-train-decoders-gpu
+    container_name: cs627-train-adapters
     environment:
       - DEVICE=cuda
-      - BATCH_SIZE=${BATCH_SIZE:-16}
-      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
-      - EPOCHS=${EPOCHS:-20}
-      - TRAIN_TEXT=${TRAIN_TEXT:-1}
-      - TRAIN_AUDIO=${TRAIN_AUDIO:-0}
-      - TRAIN_IMAGE=${TRAIN_IMAGE:-0}
-      - SEMANTIC_SOURCE=${SEMANTIC_SOURCE:-text_only}
-      - INSTANCE_ID=${HOSTNAME:-docker}
+      - BATCH_SIZE=${BATCH_SIZE:-256}
+      - LEARNING_RATE=${LEARNING_RATE:-0.001}
+      - EPOCHS=${EPOCHS:-50}
+      - TOKEN_DIR=/workspace/data/pregenerated_tokens/mosi
+      - ADAPTER_HIDDEN_SIZE=${ADAPTER_HIDDEN_SIZE:-512}
+      - ADAPTER_LAYERS=${ADAPTER_LAYERS:-2}
+      - USE_AMP=1
+      - GRADIENT_ACCUMULATION=${GRADIENT_ACCUMULATION:-1}
     volumes:
       - ./data:/workspace/data
+      - ./src:/workspace/src
       - ./OptimalWeights:/workspace/OptimalWeights
-      - ./CandidateWeights:/workspace/CandidateWeights
-      - ./training_reports:/workspace/training_reports
-      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
-      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+      - ./Results:/workspace/Results
     deploy:
       resources:
         reservations:
@@ -85,35 +58,59 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: python src/Training/train_decoders.py
+    command: python src/Training/train_adapters.py --mode encoder
     restart: unless-stopped
 
-  # CPU Decoder Training Service
-  train-decoders-cpu:
+  # Adapter Training Service (CPU)
+  train-adapters-cpu:
     image: watsonblair/cs627-svs:cpu
     build:
       context: .
       dockerfile: Dockerfile.cpu
-    container_name: cs627-train-decoders-cpu
+    container_name: cs627-train-adapters-cpu
     environment:
       - DEVICE=cpu
-      - BATCH_SIZE=${BATCH_SIZE:-8}
-      - LEARNING_RATE=${LEARNING_RATE:-0.0001}
-      - EPOCHS=${EPOCHS:-20}
-      - TRAIN_TEXT=${TRAIN_TEXT:-1}
-      - TRAIN_AUDIO=${TRAIN_AUDIO:-0}
-      - TRAIN_IMAGE=${TRAIN_IMAGE:-0}
-      - SEMANTIC_SOURCE=${SEMANTIC_SOURCE:-text_only}
-      - INSTANCE_ID=${HOSTNAME:-docker-cpu}
+      - BATCH_SIZE=${BATCH_SIZE:-128}
+      - LEARNING_RATE=${LEARNING_RATE:-0.001}
+      - EPOCHS=${EPOCHS:-50}
+      - TOKEN_DIR=/workspace/data/pregenerated_tokens/mosi
+      - ADAPTER_HIDDEN_SIZE=${ADAPTER_HIDDEN_SIZE:-512}
+      - ADAPTER_LAYERS=${ADAPTER_LAYERS:-2}
+      - USE_AMP=0
     volumes:
       - ./data:/workspace/data
+      - ./src:/workspace/src
       - ./OptimalWeights:/workspace/OptimalWeights
-      - ./CandidateWeights:/workspace/CandidateWeights
-      - ./training_reports:/workspace/training_reports
-      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
-      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
-    command: python src/Training/train_decoders.py
+      - ./Results:/workspace/Results
+    command: python src/Training/train_adapters.py --mode encoder
     restart: unless-stopped
+
+  # Ablation Study Service
+  ablation-study:
+    image: watsonblair/cs627-svs:gpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs627-ablation
+    environment:
+      - DEVICE=${DEVICE:-cuda}
+      - TOKEN_DIR=/workspace/data/pregenerated_tokens/mosi
+      - RESULTS_DIR=/workspace/Results/ablation
+    volumes:
+      - ./data:/workspace/data
+      - ./src:/workspace/src
+      - ./OptimalWeights:/workspace/OptimalWeights
+      - ./Results:/workspace/Results
+      - ./configs:/workspace/configs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python src/Experiments/run_ablation.py --config recommended
+    restart: "no"
 
   # Development Service with Jupyter Lab
   dev:
@@ -129,10 +126,7 @@ services:
       - .:/workspace
       - ./data:/workspace/data
       - ./OptimalWeights:/workspace/OptimalWeights
-      - ./CandidateWeights:/workspace/CandidateWeights
-      - ./training_reports:/workspace/training_reports
-      - ./EncoderCheckpoints:/workspace/EncoderCheckpoints
-      - ./DecoderCheckpoints:/workspace/DecoderCheckpoints
+      - ./Results:/workspace/Results
     ports:
       - "8888:8888"  # Jupyter Lab
       - "6006:6006"  # TensorBoard
@@ -153,10 +147,11 @@ services:
     container_name: cs627-evaluate
     environment:
       - DEVICE=${DEVICE:-cuda}
+      - TOKEN_DIR=/workspace/data/pregenerated_tokens/mosi
     volumes:
       - ./data:/workspace/data
       - ./OptimalWeights:/workspace/OptimalWeights
-      - ./training_reports:/workspace/training_reports
+      - ./Results:/workspace/Results
     deploy:
       resources:
         reservations:
@@ -186,8 +181,10 @@ services:
     environment:
       - DEVICE=${DEVICE:-cuda}
     volumes:
+      - ./src:/workspace/src
       - ./OptimalWeights:/workspace/OptimalWeights
       - ./tests:/workspace/tests
+      - ./data:/workspace/data
     deploy:
       resources:
         reservations:
@@ -204,7 +201,9 @@ volumes:
     driver: local
   model-weights:
     driver: local
-  training-reports:
+  training-results:
+    driver: local
+  pregenerated-tokens:
     driver: local
 
 # Networks

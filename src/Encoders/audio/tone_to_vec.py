@@ -60,7 +60,8 @@ class Tone_to_Vec(torch.nn.Module):
         input_audio: Union[torch.Tensor, list, np.ndarray],
         *,
         sampling_rate: int = 16000,
-        device: str = DEVICE
+        device: str = DEVICE,
+        pregen: bool = False
     ) -> torch.Tensor:
         """
         Forward pass: audio waveform → WavLM encoder → pooled → adapter → semantic vector
@@ -93,7 +94,11 @@ class Tone_to_Vec(torch.nn.Module):
 
         # Mean pooling over time dimension to get fixed-size representation
         pooled_output = encoder_hidden_states.mean(dim=1)  # (batch, 768)
-
+        
+        # If in pregeneration mode
+        if(pregen):
+            return pooled_output
+        
         # Project to semantic space with adapter
         semantic_vector = self.adapter(pooled_output)
 

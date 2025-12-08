@@ -42,8 +42,14 @@ except ImportError:
     UMAP_AVAILABLE = False
     print("UMAP not available. Install with: pip install umap-learn")
 
-# Set style
-plt.style.use('seaborn-v0_8-darkgrid')
+# Set style - use available style
+try:
+    plt.style.use('seaborn-v0_8-darkgrid')
+except:
+    try:
+        plt.style.use('seaborn-darkgrid')
+    except:
+        plt.style.use('default')
 sns.set_palette("husl")
 
 

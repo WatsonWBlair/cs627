@@ -88,7 +88,8 @@ class {Modality}_to_Vec(torch.nn.Module):
         self,
         input_data: Union[...],  # TODO: Specify input type (str, torch.Tensor, PIL.Image, etc.)
         *,
-        device: str = DEVICE
+        device: str = DEVICE,
+        pregen: bool = False
     ) -> torch.Tensor:
         """
         Encode {modality} input to semantic vector.
@@ -145,6 +146,10 @@ class {Modality}_to_Vec(torch.nn.Module):
         # - Last token: hidden_states[:, -1, :]  # Final token
         pooled_output: torch.Tensor = hidden_states.mean(dim=1)  # (batch, hidden_dim)
 
+        # If Pre-Generation mode, return pretrained output instead of adapter output.
+        if pregen:
+            return pooled_output
+        
         # Project to semantic space via adapter
         semantic_vector: torch.Tensor = self.adapter(pooled_output)
 

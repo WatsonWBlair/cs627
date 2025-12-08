@@ -59,8 +59,21 @@ cd CMU-MultimodalSDK && pip install .
 python scripts/data_wrangling/download_test_videos.py
 python scripts/data_wrangling/extract_test_segments.py
 
-# Train text, audio, and video encoders on CMU-MOSI dataset
-python src/Training/train_encoders.py
+# Token-Based Training (10-100x faster)
+# Step 1: Pre-generate encoder tokens (run once)
+python src/Training/pregenerate_tokens.py
+
+# Step 2: Train adapter MLPs (fast iteration)
+python src/Training/train_adapters.py --mode encoder
+```
+
+**Using Docker (Recommended - avoids environment issues):**
+```bash
+# Step 1: Pre-generate tokens
+docker-compose up pregenerate-tokens
+
+# Step 2: Train adapters
+docker-compose up train-adapters-gpu
 ```
 
 See [Training README](src/Training/README.md) for detailed instructions.

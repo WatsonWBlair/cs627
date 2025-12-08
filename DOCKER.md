@@ -30,19 +30,30 @@ All images are available on Docker Hub at: `watsonblair/cs627-svs`
 # Pull the latest GPU image
 docker pull watsonblair/cs627-svs:latest
 
-# Run training with GPU
+# Step 1: Generate tokens (run once)
 docker run --gpus all \
   -v $(pwd)/data:/workspace/data \
+  -v $(pwd)/src:/workspace/src \
   -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
   watsonblair/cs627-svs:latest \
-  python src/Training/train_encoders.py
+  python src/Training/pregenerate_tokens.py
 
-# Run CPU version
+# Step 2: Train adapters (fast training)
+docker run --gpus all \
+  -v $(pwd)/data:/workspace/data \
+  -v $(pwd)/src:/workspace/src \
+  -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
+  -v $(pwd)/Results:/workspace/Results \
+  watsonblair/cs627-svs:latest \
+  python src/Training/train_adapters.py --mode encoder
+
+# CPU version
 docker run \
   -v $(pwd)/data:/workspace/data \
+  -v $(pwd)/src:/workspace/src \
   -v $(pwd)/OptimalWeights:/workspace/OptimalWeights \
   watsonblair/cs627-svs:cpu \
-  python src/Training/train_encoders.py
+  python src/Training/train_adapters.py --mode encoder
 
 # Launch development environment
 docker run --gpus all -p 8888:8888 \
@@ -67,17 +78,26 @@ The `docker/` directory contains helper scripts for common operations:
 # - watsonblair/cs627-svs:latest (same as gpu)
 ```
 
-### Training
+### Token-Based Training Workflow
 
 ```bash
-# Auto-detect GPU and run appropriate container
-./docker/train.sh
+# Step 1: Pre-generate tokens (run once)
+./docker/pregenerate.sh
 
-# Force GPU mode
-./docker/train.sh --gpu
+# Step 2: Train adapters (fast)
+./docker/train-adapters.sh
 
-# Use docker-compose
-./docker/train.sh --compose
+# Options for both scripts:
+# --batch-size SIZE  Set batch size
+# --cpu              Force CPU mode
+# --gpu              Force GPU mode
+# --compose          Use docker-compose
+
+# Train decoder adapters
+./docker/train-adapters.sh --mode decoder
+
+# Run ablation study
+docker-compose up ablation-study
 ```
 
 ### Development Environment
@@ -111,11 +131,13 @@ docker stop cs627-dev
 Use Docker Compose for multi-container orchestration:
 
 ```bash
-# Start GPU training
-docker-compose up train-gpu
+# Token-based training workflow
+docker-compose up pregenerate-tokens      # Step 1: Generate tokens
+docker-compose up train-adapters-gpu      # Step 2: Train adapters (GPU)
+docker-compose up train-adapters-cpu      # Or train on CPU
 
-# Start CPU training
-docker-compose up train-cpu
+# Run ablation study
+docker-compose up ablation-study
 
 # Start development environment
 docker-compose up dev
