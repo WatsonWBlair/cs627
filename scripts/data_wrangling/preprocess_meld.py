@@ -1,86 +1,169 @@
-import pandas as pd
+"""
+MELD Dataset Wrangling for Emotion Classification
+
+Loads and preprocesses the MELD (Multimodal EmotionLines Dataset) for
+contrastive learning. Outputs triplets where same emotion = positive pair.
+
+Usage:
+    python scripts/data_wrangling/preprocess_meld.py
+"""
+
+import argparse
+import random
+from collections import defaultdict
+from typing import Dict, List, Iterator
+from tqdm import tqdm
+
 from datasets import load_dataset
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import LabelEncoder
 
-def load_and_preprocess_data():
+from streaming_utils import StreamingWranglerBase, NegativePool
+
+
+class MELDWrangler(StreamingWranglerBase):
     """
-    Loads the MELD dataset, flattens it for sentence-level
-    emotion classification, encodes labels, and preprocesses
-    it for scikit-learn.
+    Process MELD emotion classification dataset.
 
-    Returns:
-        X_train_tfidf: TF-IDF sparse matrix for training text
-        X_val_tfidf: TF-IDF sparse matrix for validation text
-        X_test_tfidf: TF-IDF sparse matrix for testing text
-        y_train: (pd.Series) Encoded training emotion labels (int)
-        y_val: (pd.Series) Encoded validation emotion labels (int)
-        y_test: (pd.Series) Encoded testing emotion labels (int)
-        vectorizer: The fitted TfidfVectorizer object
-        label_encoder: The fitted LabelEncoder object (to see names)
+    Generates triplets where:
+    - Anchor and positive have the same emotion
+    - Negative has a different emotion
     """
 
-    # Loading the dataset from Hugging Face
-    print("Loading MELD dataset...")
-    # This is a standard, safe-to-load dataset
-    # It will be downloaded and cached locally
-    train_ds = load_dataset("declare-lab/MELD", split="train")
-    val_ds = load_dataset("declare-lab/MELD", split="validation")
-    test_ds = load_dataset("declare-lab/MELD", split="test")
+    # MELD emotions: anger, disgust, fear, joy, neutral, sadness, surprise
+    EMOTIONS = ['anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise']
 
-    # Now extract X (Utterance) and y (Emotion)
-    # This dataset is already 'flat', so no need to loop
-    print("Extracting X (text) and y (labels)...")
-    X_train = pd.Series(train_ds['Utterance'])
-    y_train_str = pd.Series(train_ds['Emotion'])
+    def __init__(
+        self,
+        output_dir: str = "data/meld/",
+        checkpoint_interval: int = 5000,
+        samples_per_emotion: int = 100
+    ):
+        """
+        Initialize MELD wrangler.
 
-    X_val = pd.Series(val_ds['Utterance'])
-    y_val_str = pd.Series(val_ds['Emotion'])
+        Args:
+            output_dir: Directory to save outputs
+            checkpoint_interval: Samples between checkpoints
+            samples_per_emotion: Max triplets per emotion class
+        """
+        super().__init__("meld", output_dir, checkpoint_interval)
+        self.samples_per_emotion = samples_per_emotion
+        self.negative_pool = NegativePool(max_size=5000)
 
-    X_test = pd.Series(test_ds['Utterance'])
-    y_test_str = pd.Series(test_ds['Emotion'])
+    def process(self) -> List[Dict[str, str]]:
+        """
+        Process MELD dataset.
 
-    # Next pre-processing (Part A): Label Encoding
-    # We must convert text labels ("joy", "anger") to numbers (0, 1)
-    # for scikit-learn models.
-    print("Encoding text labels to integers...")
-    label_encoder = LabelEncoder()
+        Returns:
+            List of triplet dictionaries
+        """
+        print("\n" + "=" * 80)
+        print("MELD Data Extraction (Streaming)")
+        print("=" * 80)
 
-    # Fit the encoder on the TRAINING labels only
-    y_train = label_encoder.fit_transform(y_train_str)
+        # Load all splits with streaming
+        print("Loading dataset...")
+        train = load_dataset("declare-lab/MELD", split="train", streaming=True)
 
-    # Transform the validation and test labels
-    y_val = label_encoder.transform(y_val_str)
-    y_test = label_encoder.transform(y_test_str)
+        # Group by emotion
+        emotion_groups = defaultdict(list)
 
-    # Pre-processing (Part B): TF-IDF Vectorization
-    print("Starting TF-IDF vectorization...")
-    vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+        print("Grouping by emotion...")
+        for sample in tqdm(train, desc="Processing"):
+            text = sample['Utterance']
+            emotion = sample['Emotion']
 
-    # Fit the vectorizer ON THE TRAINING TEXT ONLY
-    X_train_tfidf = vectorizer.fit_transform(X_train)
+            # Skip empty utterances
+            if not text or not text.strip():
+                continue
 
-    # Use the SAME fitted vectorizer to transform validation and test text
-    X_val_tfidf = vectorizer.transform(X_val)
-    X_test_tfidf = vectorizer.transform(X_test)
+            self.negative_pool.add(text)
+            emotion_groups[emotion].append(text)
 
-    print("Pre-processing complete.")
-    print(f"Training data shape: {X_train_tfidf.shape}")
-    print(f"Validation data shape: {X_val_tfidf.shape}")
-    print(f"Test data shape: {X_test_tfidf.shape}")
+        # Generate triplets
+        print(f"\nFound {len(emotion_groups)} emotion classes:")
+        for emotion, texts in emotion_groups.items():
+            print(f"  {emotion}: {len(texts)} samples")
 
-    # You can see the label mapping
-    print(f"\nTotal of {len(label_encoder.classes_)} emotion labels.")
-    example_label_int = y_train[0]
-    example_label_str = label_encoder.inverse_transform([example_label_int])[0]
-    print(f"Example label: {example_label_int} = {example_label_str}")
+        print("\nGenerating triplets...")
+        emotions = list(emotion_groups.keys())
 
-    return X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer, label_encoder
+        for emotion in tqdm(emotions, desc="Generating"):
+            texts = emotion_groups[emotion]
+            if len(texts) < 2:
+                continue
 
-# --- Main execution ---
+            # Generate triplets for this emotion
+            count = 0
+            for i, anchor in enumerate(texts):
+                if count >= self.samples_per_emotion:
+                    break
+
+                # Select positive from same emotion
+                positive_candidates = [t for t in texts if t != anchor]
+                if not positive_candidates:
+                    continue
+                positive = random.choice(positive_candidates)
+
+                # Select negative from different emotion
+                other_emotion = random.choice([e for e in emotions if e != emotion])
+                if not emotion_groups[other_emotion]:
+                    negative = self.negative_pool.sample(exclude={anchor, positive})
+                else:
+                    negative = random.choice(emotion_groups[other_emotion])
+
+                if negative:
+                    self.triplets.append({
+                        'anchor': anchor,
+                        'positive': positive,
+                        'negative': negative
+                    })
+                    count += 1
+
+        print()
+        print("=" * 80)
+        print("Summary")
+        print("=" * 80)
+        print(f"Total triplets: {len(self.triplets)}")
+        print(f"Emotion classes: {len(emotion_groups)}")
+
+        return self.triplets
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Preprocess MELD for contrastive learning"
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='data/meld/',
+        help='Directory to save outputs'
+    )
+    parser.add_argument(
+        '--samples-per-emotion',
+        type=int,
+        default=100,
+        help='Max triplets per emotion class'
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=42,
+        help='Random seed'
+    )
+
+    args = parser.parse_args()
+    random.seed(args.seed)
+
+    wrangler = MELDWrangler(
+        output_dir=args.output_dir,
+        samples_per_emotion=args.samples_per_emotion
+    )
+
+    output_path = wrangler.run(resume=True)
+
+    print(f"\nData saved to: {output_path}")
+
+
 if __name__ == "__main__":
-
-    X_train, X_val, X_test, y_train, y_val, y_test, vec, le = load_and_preprocess_data()
-
-    print("\nData is loaded and pre-processed.")
-    print("Our team can now import this function into our main training script.")
+    main()

@@ -4,225 +4,233 @@ Scripts for downloading, extracting, and preprocessing datasets for the CS627 Se
 
 **Overview**: See [docs/DATA_PIPELINE.md](../../docs/DATA_PIPELINE.md) for data pipeline concepts and workflow.
 
-## Available Scripts
+## Architecture
 
-| Script | Purpose | Input | Output |
-|--------|---------|-------|--------|
-| `download_all_mosi_videos.py` | Download MOSI YouTube videos | Video IDs | `.mp4` files |
-| `download_test_videos.py` | Download subset for testing | Video IDs | `.mp4` files |
-| `extract_all_segments.py` | Extract audio/frames from videos | `.mp4` files | `.wav`, `.jpg` |
-| `extract_test_segments.py` | Extract subset for testing | `.mp4` files | `.wav`, `.jpg` |
-| `wrangle_glue_data.py` | Process GLUE into triplets | HuggingFace | `glue_triplets.pkl` |
-| `wrangle_mteb_data.py` | Process MTEB into pairs | HuggingFace | `mteb_triplets.pkl` |
-| `preprocess_meld.py` | Process MELD dataset | MELD files | Processed `.pkl` |
-| `preprocess_clinc_oos.py` | Process CLINC-OOS dataset | CLINC files | Processed `.pkl` |
+All wranglers use HuggingFace datasets with streaming for memory-efficient processing:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    StreamingWranglerBase                        │
+│  ├── Checkpoint/resume support                                  │
+│  ├── Unified triplet output format                              │
+│  └── NegativePool for random sampling                           │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+    ┌───────────────────────┼───────────────────────┐
+    │                       │                       │
+┌───┴───┐             ┌─────┴─────┐           ┌─────┴─────┐
+│ Text  │             │  Image    │           │  Audio    │
+├───────┤             ├───────────┤           ├───────────┤
+│ GLUE  │             │ COCO      │           │LibriSpeech│
+│ MTEB  │             │ CC3M/12M  │           │ RAVDESS   │
+│ CLINC │             │ LAION     │           │           │
+│ MELD  │             │           │           │           │
+│ MOSEI │             │           │           │           │
+└───────┘             └───────────┘           └───────────┘
+```
 
 ## Quick Start
 
 ```bash
-# Download and extract MOSI data
-python scripts/data_wrangling/download_all_mosi_videos.py
-python scripts/data_wrangling/extract_all_segments.py
-
-# Generate training triplets from GLUE/MTEB
+# Generate triplets from any dataset
 python scripts/data_wrangling/wrangle_glue_data.py
 python scripts/data_wrangling/wrangle_mteb_data.py
+python scripts/data_wrangling/wrangle_coco_data.py
+
+# Multimodal emotion datasets
+python scripts/data_wrangling/wrangle_mosei_data.py
+python scripts/data_wrangling/wrangle_ravdess_data.py
+
+# Combine all triplets
+python scripts/data_wrangling/unified_triplet_dataset.py --stats
 ```
 
-## Environment Variables
+## Available Wranglers
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MOSI_DATA_PATH` | `data/cmumosi/mosi/` | MOSI metadata directory |
-| `AUDIO_DIR` | `data/cmumosi/audio/` | Output for extracted audio |
-| `VIDEO_DIR` | `data/cmumosi/frames/` | Output for extracted frames |
-| `GLUE_DATA_PATH` | `data/glue/` | GLUE output directory |
-| `MTEB_DATA_PATH` | `data/mteb/` | MTEB output directory |
-| `SKIP_DOWNLOAD` | `1` | Skip SDK downloads |
+| Script | Dataset | HuggingFace ID | Output |
+|--------|---------|----------------|--------|
+| `wrangle_glue_data.py` | GLUE Benchmark | `glue` | `glue_triplets.json` |
+| `wrangle_mteb_data.py` | MTEB Tasks | `mteb/*`, `sentence-transformers/*` | `mteb_triplets.json` |
+| `preprocess_clinc_oos.py` | CLINC-OOS | `clinc_oos` | `clinc_triplets.json` |
+| `preprocess_meld.py` | MELD | `declare-lab/MELD` | `meld_triplets.json` |
+| `wrangle_coco_data.py` | MS COCO | `HuggingFaceM4/COCO` | `coco_triplets.json` |
+| `wrangle_librispeech_data.py` | LibriSpeech | `librispeech_asr` | `librispeech_triplets.json` |
+| `wrangle_conceptual_captions.py` | CC3M/CC12M | `conceptual_captions` | `cc_triplets.json` |
+| `wrangle_laion_data.py` | LAION | `laion/*` | `laion_triplets.json` |
+| `wrangle_mosei_data.py` | CMU-MOSEI | `reeha-parkar/cmu-mosei-comp-seq` | `mosei_triplets.json` |
+| `wrangle_ravdess_data.py` | RAVDESS | `narad/ravdess` | `ravdess_triplets.json` |
+
+## Unified Output Format
+
+All wranglers produce the same JSON structure:
+
+```json
+{
+  "triplets": [
+    {"anchor": "text1", "positive": "similar_text", "negative": "different_text"},
+    ...
+  ],
+  "metadata": {
+    "source": "dataset_name",
+    "total_samples": 50000,
+    "created_at": "2024-01-01T00:00:00"
+  }
+}
+```
+
+## Checkpoint/Resume Support
+
+All wranglers support automatic checkpointing:
+
+```bash
+# Start processing (creates checkpoint files)
+python scripts/data_wrangling/wrangle_glue_data.py
+
+# Resume from checkpoint if interrupted
+python scripts/data_wrangling/wrangle_glue_data.py
+
+# Force fresh start
+python scripts/data_wrangling/wrangle_glue_data.py --no-resume
+```
+
+Checkpoint files: `data/{dataset}/{dataset}_checkpoint.json`
 
 ## MOSI Video Pipeline
 
 ### Step 1: Download Videos
 
 ```bash
-# Full dataset (~93 videos)
+# Download all available MOSI YouTube videos
 python scripts/data_wrangling/download_all_mosi_videos.py
 
-# Test subset (~10 videos)
-python scripts/data_wrangling/download_test_videos.py
+# Retry failed downloads
+python scripts/data_wrangling/download_all_mosi_videos.py --retry-failed
 ```
-
-**Requirements**: `yt-dlp` or `youtube-dl` installed.
 
 ### Step 2: Extract Segments
 
 ```bash
-# Extract all segments based on MOSI metadata timestamps
+# Extract audio + frames from all videos
 python scripts/data_wrangling/extract_all_segments.py
-
-# Test subset only
-python scripts/data_wrangling/extract_test_segments.py
 ```
 
-**Output**:
-- `data/cmumosi/audio/{video_id}_{segment}.wav` - 16kHz mono audio
-- `data/cmumosi/frames/{video_id}_{segment}.jpg` - Representative frame
-
-### Segment Extraction Details
-
-```python
-# Audio extraction settings
-AUDIO_SAMPLE_RATE = 16000
-AUDIO_CHANNELS = 1  # Mono
-AUDIO_FORMAT = 'wav'
-
-# Frame extraction settings
-FRAME_FORMAT = 'jpg'
-FRAME_QUALITY = 95
-```
-
-## GLUE Data Wrangling
-
-### Generate Triplets
+### Step 3: Prepare for HuggingFace Hub
 
 ```bash
-python scripts/data_wrangling/wrangle_glue_data.py
+# Create Hub-ready dataset
+python scripts/data_wrangling/prepare_mosi_for_hub.py
 ```
 
-**Tasks processed**:
-- MRPC (paraphrase detection)
-- QQP (question duplicates)
-- STS-B (semantic similarity)
-- MNLI (natural language inference)
-- QNLI (question-answering NLI)
+Output: `data/cmumosi/hub_export/` (~1.5GB)
 
-**Output format** (`data/glue/glue_triplets.pkl`):
-```python
-{
-    'triplets': [
-        {'anchor': str, 'positive': str, 'negative': str},
-        ...
-    ],
-    'metadata': {
-        'source_tasks': ['mrpc', 'qqp', ...],
-        'total_triplets': int,
-        'created_at': str
-    }
-}
-```
+## Unified Triplet Dataset
 
-### Triplet Generation Logic
+Combine triplets from multiple sources:
 
 ```python
-# From paraphrase pairs (MRPC, QQP)
-# Positive: paraphrase pair
-# Negative: random non-paraphrase
+from unified_triplet_dataset import UnifiedTripletDataset
 
-# From NLI data (MNLI, QNLI)
-# Positive: entailment pair
-# Negative: contradiction pair
+# Load from directories
+dataset = UnifiedTripletDataset.from_directories([
+    'data/glue/',
+    'data/mteb/',
+    'data/clinc/',
+    'data/meld/'
+])
 
-# From similarity scores (STS-B)
-# Positive: high similarity (>4.0)
-# Negative: low similarity (<2.0)
+# Get PyTorch DataLoader
+dataloader = dataset.to_dataloader(batch_size=32)
+
+# Split into train/val/test
+train, val, test = dataset.split()
+
+# Save combined dataset
+dataset.save('data/unified_triplets.json')
 ```
 
-## MTEB Data Wrangling
-
-### Generate Pairs
-
-```bash
-python scripts/data_wrangling/wrangle_mteb_data.py
-```
-
-**Tasks processed**:
-- STS12-16 (semantic similarity)
-- STSBenchmark
-- SICK-R (semantic relatedness)
-
-**Output format** (`data/mteb/mteb_triplets.pkl`):
-```python
-{
-    'pairs': [
-        {'text1': str, 'text2': str, 'score': float},
-        ...
-    ],
-    'triplets': [
-        {'anchor': str, 'positive': str, 'negative': str},
-        ...
-    ],
-    'metadata': {...}
-}
-```
-
-## Output File Structure
+## Output Directory Structure
 
 ```
 data/
-├── cmumosi/
-│   ├── mosi/                    # Metadata (.cdf files)
-│   ├── audio/                   # Extracted audio
-│   │   └── {video_id}_{segment}.wav
-│   ├── frames/                  # Extracted frames
-│   │   └── {video_id}_{segment}.jpg
-│   └── pickles/                 # Preprocessed splits
-│       ├── preprocessed_train.pkl
-│       ├── preprocessed_valid.pkl
-│       └── preprocessed_test.pkl
 ├── glue/
-│   ├── glue_triplets.pkl
-│   └── glue_metadata.json
-└── mteb/
-    ├── mteb_triplets.pkl
-    └── mteb_metadata.json
+│   ├── glue_triplets.json
+│   └── glue_checkpoint.json
+├── mteb/
+│   ├── mteb_triplets.json
+│   └── mteb_checkpoint.json
+├── clinc/
+│   └── clinc_triplets.json
+├── meld/
+│   └── meld_triplets.json
+├── coco/
+│   └── coco_triplets.json
+├── librispeech/
+│   └── librispeech_triplets.json
+├── mosei/
+│   ├── mosei_triplets.json
+│   └── mosei_checkpoint.json
+├── ravdess/
+│   ├── ravdess_triplets.json
+│   └── ravdess_checkpoint.json
+├── cmumosi/
+│   ├── audio/          # Extracted .wav files
+│   ├── frames/         # Extracted .jpg files
+│   ├── mosi/           # MOSI metadata
+│   └── hub_export/     # HuggingFace Hub ready
+└── unified_triplets.json
 ```
 
-## Adding New Dataset Scripts
+## Creating New Wranglers
 
-### Template
+Inherit from `StreamingWranglerBase`:
 
 ```python
-#!/usr/bin/env python3
-"""
-{Dataset} data wrangling script.
+from streaming_utils import StreamingWranglerBase, NegativePool
 
-Usage:
-    python scripts/data_wrangling/wrangle_{dataset}_data.py
+class MyWrangler(StreamingWranglerBase):
+    def __init__(self, output_dir: str = "data/mydataset/"):
+        super().__init__("mydataset", output_dir)
+        self.negative_pool = NegativePool(max_size=10000)
 
-Output:
-    data/{dataset}/{dataset}_triplets.pkl
-"""
+    def process(self) -> List[Dict[str, str]]:
+        dataset = load_dataset("my/dataset", streaming=True)
 
-import os
-import pickle
-from datasets import load_dataset
+        for sample in dataset:
+            # Add to negative pool
+            self.negative_pool.add(sample['text'])
 
-OUTPUT_DIR = os.environ.get('{DATASET}_DATA_PATH', 'data/{dataset}/')
+            # Generate triplet
+            self.triplets.append({
+                'anchor': sample['anchor'],
+                'positive': sample['positive'],
+                'negative': self.negative_pool.sample()
+            })
 
-def download_data():
-    """Download raw data from source."""
-    pass
+        return self.triplets
 
-def process_to_triplets(data):
-    """Convert raw data to anchor/positive/negative triplets."""
-    pass
-
-def save_output(triplets, metadata):
-    """Save processed data to pickle file."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output = {'triplets': triplets, 'metadata': metadata}
-    with open(os.path.join(OUTPUT_DIR, '{dataset}_triplets.pkl'), 'wb') as f:
-        pickle.dump(output, f)
-
-if __name__ == '__main__':
-    data = download_data()
-    triplets = process_to_triplets(data)
-    save_output(triplets, {'source': '{dataset}', 'count': len(triplets)})
+# Run with checkpoint support
+wrangler = MyWrangler()
+wrangler.run(resume=True)
 ```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHECKPOINT_INTERVAL` | `5000` | Samples between checkpoints |
 
 ## Troubleshooting
 
+### "HuggingFace dataset loading error"
+
+```bash
+# Clear cache and retry
+rm -rf ~/.cache/huggingface/datasets
+python scripts/data_wrangling/wrangle_glue_data.py
+```
+
 ### "Video download failed"
+
 ```bash
 # Update yt-dlp
 pip install -U yt-dlp
@@ -232,6 +240,7 @@ yt-dlp --list-formats "VIDEO_URL"
 ```
 
 ### "Audio extraction failed"
+
 ```bash
 # Install ffmpeg
 # Ubuntu/Debian
@@ -244,24 +253,8 @@ brew install ffmpeg
 choco install ffmpeg
 ```
 
-### "Missing .cdf metadata files"
-```bash
-# Download MOSI metadata
-SKIP_DOWNLOAD=0 python -c "
-from src.Training.Data_Wrangling.mosi_dataset import download_mosi
-download_mosi('data/cmumosi/mosi/')
-"
-```
-
-### "HuggingFace dataset loading error"
-```bash
-# Clear cache and retry
-rm -rf ~/.cache/huggingface/datasets
-python scripts/data_wrangling/wrangle_glue_data.py
-```
-
 ## Related Documentation
 
-- [docs/DATA_PIPELINE.md](../../docs/DATA_PIPELINE.md) - Pipeline overview and workflow
+- [docs/DATA_PIPELINE.md](../../docs/DATA_PIPELINE.md) - Pipeline overview
 - [docs/TROUBLESHOOTING.md](../../docs/TROUBLESHOOTING.md) - General troubleshooting
 - [src/Training/Data_Wrangling/](../../src/Training/Data_Wrangling/) - Runtime data loading

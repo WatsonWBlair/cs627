@@ -1,78 +1,155 @@
-import pandas as pd
+"""
+CLINC-OOS Dataset Wrangling for Intent Classification
+
+Loads and preprocesses the CLINC-OOS intent classification dataset.
+Outputs triplets for contrastive learning (same intent = positive).
+
+Usage:
+    python scripts/data_wrangling/preprocess_clinc_oos.py
+"""
+
+import argparse
+import random
+from collections import defaultdict
+from typing import Dict, List, Iterator
+from tqdm import tqdm
+
 from datasets import load_dataset
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-def load_and_preprocess_data():
+from streaming_utils import StreamingWranglerBase, NegativePool
+
+
+class CLINCWrangler(StreamingWranglerBase):
     """
-    Loads an intent classification dataset (clinc_oos) and preprocesses it for scikit-learn.
+    Process CLINC-OOS intent classification dataset.
 
-    Returns:
-        X_train_tfidf: TF-IDF sparse matrix for training text
-        X_val_tfidf: TF-IDF sparse matrix for validation text
-        X_test_tfidf: TF-IDF sparse matrix for testing text
-        y_train: (pd.Series) Training labels
-        y_val: (pd.Series) Validation labels
-        y_test: (pd.Series) Testing labels
-        vectorizer: The fitted TfidfVectorizer object
+    Generates triplets where:
+    - Anchor and positive have the same intent
+    - Negative has a different intent
     """
 
-    # Loading the clinc_oos dataset from Hugging Face as an alternative
-    # This command downloads (if needed) and loads from the local cache
-    print("Loading clinc_oos dataset...")
+    def __init__(
+        self,
+        output_dir: str = "data/clinc/",
+        checkpoint_interval: int = 5000,
+        samples_per_intent: int = 50
+    ):
+        """
+        Initialize CLINC wrangler.
 
-    # We load all three available splits: train, validation, and test
-    train_ds = load_dataset("clinc_oos", "plus", split="train")
-    val_ds = load_dataset("clinc_oos", "plus", split="validation")
-    test_ds = load_dataset("clinc_oos", "plus", split="test")
+        Args:
+            output_dir: Directory to save outputs
+            checkpoint_interval: Samples between checkpoints
+            samples_per_intent: Max triplets per intent class
+        """
+        super().__init__("clinc", output_dir, checkpoint_interval)
+        self.samples_per_intent = samples_per_intent
+        self.negative_pool = NegativePool(max_size=5000)
 
-    # Now extract text (X) and labels (y)
-    # For clinc_oos:
-    #   X is the 'text' column
-    #   y is the 'intent' column
+    def process(self) -> List[Dict[str, str]]:
+        """
+        Process CLINC-OOS dataset.
 
-    X_train = pd.Series(train_ds['text'])
-    y_train = pd.Series(train_ds['intent'])
+        Returns:
+            List of triplet dictionaries
+        """
+        print("\n" + "=" * 80)
+        print("CLINC-OOS Data Extraction (Streaming)")
+        print("=" * 80)
 
-    X_val = pd.Series(val_ds['text'])
-    y_val = pd.Series(val_ds['intent'])
+        # Load all splits with streaming
+        print("Loading dataset...")
+        train = load_dataset("clinc_oos", "plus", split="train", streaming=True)
 
-    X_test = pd.Series(test_ds['text'])
-    y_test = pd.Series(test_ds['intent'])
+        # Group by intent
+        intent_groups = defaultdict(list)
 
-    # Next pre-processing: TF-IDF Vectorization
-    # This converts the raw text into a numerical feature matrix
-    # required by scikit-learn models (SVM, Naive Bayes, etc.)
-    print("Starting TF-IDF vectorization...")
+        print("Grouping by intent...")
+        for sample in tqdm(train, desc="Processing"):
+            text = sample['text']
+            intent = sample['intent']
 
-    # Initialize the vectorizer
-    # max_features=5000 is a good starting point
-    vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+            self.negative_pool.add(text)
+            intent_groups[intent].append(text)
 
-    # Fit the vectorizer ON THE TRAINING DATA ONLY
-    X_train_tfidf = vectorizer.fit_transform(X_train)
+        # Generate triplets
+        print(f"\nFound {len(intent_groups)} intent classes")
+        print("Generating triplets...")
 
-    # Use the SAME fitted vectorizer to transform the validation and test data
-    X_val_tfidf = vectorizer.transform(X_val)
-    X_test_tfidf = vectorizer.transform(X_test)
+        intents = list(intent_groups.keys())
+        for intent in tqdm(intents, desc="Generating"):
+            texts = intent_groups[intent]
+            if len(texts) < 2:
+                continue
 
-    print("Pre-processing complete.")
-    print(f"Training data shape: {X_train_tfidf.shape}")
-    print(f"Validation data shape: {X_val_tfidf.shape}")
-    print(f"Test data shape: {X_test_tfidf.shape}")
+            # Generate triplets for this intent
+            count = 0
+            for i, anchor in enumerate(texts):
+                if count >= self.samples_per_intent:
+                    break
 
-    # You can also get the label names
-    label_names = train_ds.features['intent'].names
-    print(f"\nTotal of {len(label_names)} intents (labels).")
-    print(f"Example label: {y_train[0]} = {label_names[y_train[0]]}")
+                # Select positive from same intent
+                positive_candidates = [t for t in texts if t != anchor]
+                if not positive_candidates:
+                    continue
+                positive = random.choice(positive_candidates)
 
-    return X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, vectorizer
+                # Select negative from different intent
+                other_intent = random.choice([i for i in intents if i != intent])
+                negative = random.choice(intent_groups[other_intent])
 
-# --- Main execution ---
+                self.triplets.append({
+                    'anchor': anchor,
+                    'positive': positive,
+                    'negative': negative
+                })
+                count += 1
+
+        print()
+        print("=" * 80)
+        print("Summary")
+        print("=" * 80)
+        print(f"Total triplets: {len(self.triplets)}")
+        print(f"Intent classes: {len(intent_groups)}")
+
+        return self.triplets
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Preprocess CLINC-OOS for contrastive learning"
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='data/clinc/',
+        help='Directory to save outputs'
+    )
+    parser.add_argument(
+        '--samples-per-intent',
+        type=int,
+        default=50,
+        help='Max triplets per intent class'
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=42,
+        help='Random seed'
+    )
+
+    args = parser.parse_args()
+    random.seed(args.seed)
+
+    wrangler = CLINCWrangler(
+        output_dir=args.output_dir,
+        samples_per_intent=args.samples_per_intent
+    )
+
+    output_path = wrangler.run(resume=True)
+
+    print(f"\nData saved to: {output_path}")
+
+
 if __name__ == "__main__":
-    # it will load and process the data.
-
-    # Load all the pre-processed data
-    X_train, X_val, X_test, y_train, y_val, y_test, vec = load_and_preprocess_data()
-
-    print("\nData is loaded and pre-processed.")
-    print("Now our team will import this function into our main training script.")
+    main()

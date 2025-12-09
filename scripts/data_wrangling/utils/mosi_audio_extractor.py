@@ -14,6 +14,7 @@ Usage:
 """
 
 import os
+import sys
 import pickle
 import json
 from typing import List, Dict, Tuple
@@ -23,21 +24,9 @@ import soundfile as sf
 from tqdm import tqdm
 import numpy as np
 
-
-def parse_segment_id(seg_id: str) -> Tuple[str, int]:
-    """
-    Parse MOSI segment ID into video ID and segment number.
-
-    Args:
-        seg_id: MOSI segment ID (e.g., 'BvYR0L6f2Ig[2]')
-
-    Returns:
-        Tuple of (video_id, segment_num)
-    """
-    parts = seg_id.split('[')
-    video_id = parts[0]
-    segment_num = int(parts[1].rstrip(']'))
-    return video_id, segment_num
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from streaming_utils import parse_segment_id
 
 
 def extract_audio_segment(
