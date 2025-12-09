@@ -238,9 +238,9 @@ def main():
     print("\nNext steps:")
     print("  1. Download full train split videos (will take several hours)")
     print("  2. Extract audio + frames for all segments")
-    print("  3. Create MOSIRawVideoDataset loader")
-    print("  4. Update train_encoders.py")
-    print("  5. Begin training!")
+    print("  3. Pre-generate tokens: python src/Training/pregenerate_tokens.py")
+    print("  4. Train adapters: python src/Training/train_adapters.py --mode encoder")
+    print("  5. Evaluate results!")
 
 
 if __name__ == "__main__":

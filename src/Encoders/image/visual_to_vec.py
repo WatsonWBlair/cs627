@@ -97,7 +97,7 @@ class Image_to_Vec(torch.nn.Module):
             print(f"[Image_to_Vec] [WARNING] No trained adapter weights found!")
             print(f"[Image_to_Vec] [WARNING] Expected: {self.adapter.weights_path}")
             print(f"[Image_to_Vec] [WARNING] Encoder will NOT work until trained.")
-            print(f"[Image_to_Vec] [WARNING] Train using: python src/Training/train_encoders.py")
+            print(f"[Image_to_Vec] [WARNING] Train using: python src/Training/train_adapters.py --mode encoder")
 
     def forward(
         self,

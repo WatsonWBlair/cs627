@@ -7,7 +7,7 @@ Deploy CS627 training on AWS EC2 with GPU support.
 ```bash
 # 1. Setup AWS resources (one-time)
 ./scripts/setup/setup_aws_resources.sh --region us-east-1
-source .env.aws
+source .env.cloud
 
 # 2. Launch training instance
 ./scripts/cloud/launch_training_instance.sh --instance-type g5.4xlarge

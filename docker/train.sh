@@ -4,9 +4,9 @@
 # Automatically detects GPU availability and runs appropriate container
 #
 # Usage:
-#   ./docker/train.sh              # Train encoders (default)
-#   ./docker/train.sh --decoders   # Train decoders
-#   ./docker/train.sh -d           # Train decoders (short form)
+#   ./docker/train.sh              # Train adapters (default: encoder mode)
+#   ./docker/train.sh --decoders   # Train decoder adapters
+#   ./docker/train.sh -d           # Train decoder adapters (short form)
 #   ./docker/train.sh --compose    # Use docker-compose
 #   ./docker/train.sh --gpu        # Force GPU mode
 
@@ -20,15 +20,15 @@ NC='\033[0m' # No Color
 
 # Parse arguments for training type
 TRAIN_DECODERS=false
-TRAINING_SCRIPT="src/Training/train_encoders.py"
-TRAINING_TYPE="encoders"
+TRAINING_SCRIPT="src/Training/train_adapters.py --mode encoder"
+TRAINING_TYPE="encoder adapters"
 
 for arg in "$@"; do
     case $arg in
         --decoders|-d)
             TRAIN_DECODERS=true
-            TRAINING_SCRIPT="src/Training/train_decoders.py"
-            TRAINING_TYPE="decoders"
+            TRAINING_SCRIPT="src/Training/train_adapters.py --mode decoder"
+            TRAINING_TYPE="decoder adapters"
             shift
             ;;
     esac

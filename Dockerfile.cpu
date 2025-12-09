@@ -100,7 +100,7 @@ CMD ["bash", "-c", "echo '=== CS627 Semantic-Vector Space Training Environment (
      python -c 'import torch; print(f\"PyTorch: {torch.__version__}\"); print(\"Running in CPU-only mode\")' && \
      echo '' && \
      echo 'Usage:' && \
-     echo '  Training: python src/Training/train_encoders.py' && \
+     echo '  Training: python src/Training/train_adapters.py --mode encoder' && \
      echo '  Testing: python -m pytest tests/' && \
      echo '' && \
      echo 'Note: CPU mode uses reduced batch size (16) for memory efficiency' && \

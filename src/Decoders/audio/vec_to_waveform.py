@@ -6,7 +6,7 @@ Architecture: Semantic Vector (1024) -> Adapter (768) -> SpeechT5 -> HiFi-GAN ->
 Status: EXPERIMENTAL
 - Direct embedding injection approach
 - Affective speech learned end-to-end from semantic content
-- Training pipeline implemented in src/Training/train_audio_decoder.py
+- Training pipeline: python src/Training/train_adapters.py --mode decoder
 
 Based on: microsoft/speecht5_tts with HiFi-GAN vocoder
 """
@@ -111,7 +111,7 @@ class Vec_to_Audio(torch.nn.Module):
             print(f"[Vec_to_Audio] [WARNING] No trained adapter weights found!")
             print(f"[Vec_to_Audio] [WARNING] Expected: {self.adapter.weights_path}")
             print(f"[Vec_to_Audio] [WARNING] Decoder will NOT work until trained.")
-            print(f"[Vec_to_Audio] [WARNING] Train using: python src/Training/train_audio_decoder.py")
+            print(f"[Vec_to_Audio] [WARNING] Train using: python src/Training/train_adapters.py --mode decoder")
 
     def _load_speaker_embedding(self, speaker_idx: int) -> None:
         """Load pre-computed speaker embedding from CMU ARCTIC dataset."""

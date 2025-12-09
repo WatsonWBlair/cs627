@@ -199,7 +199,7 @@ aws iam delete-role --role-name cs627-ec2-role
 ```bash
 # Setup all resources
 ./scripts/setup/setup_aws_resources.sh --region us-east-1
-source .env.aws
+source .env.cloud
 
 # Launch instance
 ./scripts/cloud/launch_training_instance.sh --instance-type g5.4xlarge

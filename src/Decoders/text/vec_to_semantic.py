@@ -56,7 +56,7 @@ class Vec_to_Text(torch.nn.Module):
             print(f"[Vec_to_Text] [WARNING] No trained adapter weights found!")
             print(f"[Vec_to_Text] [WARNING] Expected: {self.adapter.weights_path}")
             print(f"[Vec_to_Text] [WARNING] Decoder will NOT work until trained.")
-            print(f"[Vec_to_Text] [WARNING] Train using: python src/Training/train_text_decoder.py")
+            print(f"[Vec_to_Text] [WARNING] Train using: python src/Training/train_adapters.py --mode decoder")
 
     def forward(self, semantic_vector: torch.Tensor, *, device: str = DEVICE) -> Union[str, list[str]]:
         """

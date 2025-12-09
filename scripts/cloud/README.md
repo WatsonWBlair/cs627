@@ -47,8 +47,12 @@ cd ~/cs627
 # Install dependencies (first time only)
 pip install -r requirements.txt
 
-# Start training
-python src/Training/train_encoders.py
+# Pre-generate tokens (first time only)
+python src/Training/pregenerate_tokens.py
+
+# Train adapters
+python src/Training/train_adapters.py --mode encoder
+python src/Training/train_adapters.py --mode decoder
 ```
 
 ### 4. Download Trained Weights

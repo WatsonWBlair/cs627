@@ -6,7 +6,7 @@ Architecture: Semantic Vector (1024) -> Adapter (77×768) -> Stable Diffusion ->
 Status: EXPERIMENTAL
 - Learned sequence adapter projects semantic vector to full CLIP embedding sequence
 - Stable Diffusion v1.4 generates images from prompt embeddings
-- Training pipeline available in src/Training/train_decoders.py
+- Training pipeline: python src/Training/train_adapters.py --mode decoder
 
 Based on: CompVis/stable-diffusion-v1-4
 
@@ -135,7 +135,7 @@ class Vec_to_Image(nn.Module):
             print(f"[Vec_to_Image] [WARNING] No trained adapter weights found!")
             print(f"[Vec_to_Image] [WARNING] Expected: {self.adapter.weights_path}")
             print(f"[Vec_to_Image] [WARNING] Decoder will NOT produce meaningful images until trained.")
-            print(f"[Vec_to_Image] [WARNING] Train using: python src/Training/train_decoders.py")
+            print(f"[Vec_to_Image] [WARNING] Train using: python src/Training/train_adapters.py --mode decoder")
 
     def forward(
         self,

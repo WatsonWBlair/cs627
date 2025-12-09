@@ -6,7 +6,7 @@
 # - IAM role and instance profile for EC2-S3 access
 # - S3 bucket with proper structure and lifecycle policies
 # - Security group with appropriate rules
-# - Outputs configuration to .env.aws file
+# - Outputs configuration to .env.cloud file
 #
 # Usage:
 #   ./scripts/setup_aws_resources.sh [--region REGION] [--bucket-suffix SUFFIX]
@@ -256,10 +256,10 @@ else
     echo -e "${GREEN}[OK] Security group created (ID: $SG_ID)${NC}"
 fi
 
-# Step 5: Create .env.aws file
-echo -e "${BLUE}[5/5] Creating .env.aws configuration file...${NC}"
+# Step 5: Create .env.cloud file
+echo -e "${BLUE}[5/5] Creating .env.cloud configuration file...${NC}"
 
-cat > .env.aws <<EOF
+cat > .env.cloud <<EOF
 # AWS Configuration for CS627 Training
 # Generated on $(date)
 
@@ -291,7 +291,7 @@ USE_AMP=1
 CACHE_SIZE=2000
 EOF
 
-echo -e "${GREEN}[OK] Configuration saved to .env.aws${NC}"
+echo -e "${GREEN}[OK] Configuration saved to .env.cloud${NC}"
 
 # Cleanup temporary files
 rm -f /tmp/trust-policy.json /tmp/lifecycle.json
@@ -309,8 +309,8 @@ echo -e "  ✓ S3 Bucket: ${GREEN}$S3_BUCKET${NC}"
 echo -e "  ✓ Security Group: ${GREEN}$SG_ID${NC}"
 echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
-echo "1. Update KEY_NAME in .env.aws with your SSH key pair name"
-echo "2. Source the environment: source .env.aws"
+echo "1. Update KEY_NAME in .env.cloud with your SSH key pair name"
+echo "2. Source the environment: source .env.cloud"
 echo "3. Launch an instance using: ./scripts/cloud/launch_training_instance.sh"
 echo ""
 echo -e "${YELLOW}To delete all resources later, run:${NC}"

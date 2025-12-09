@@ -43,7 +43,7 @@ class Text_to_Vec(torch.nn.Module):
             print(f"[Text_to_Vec] [WARNING] No trained adapter weights found!")
             print(f"[Text_to_Vec] [WARNING] Expected: {self.adapter.weights_path}")
             print(f"[Text_to_Vec] [WARNING] Encoder will NOT work until trained.")
-            print(f"[Text_to_Vec] [WARNING] Train using: python src/Training/train_text_encoder.py")
+            print(f"[Text_to_Vec] [WARNING] Train using: python src/Training/train_adapters.py --mode encoder")
 
     def forward(
         self,

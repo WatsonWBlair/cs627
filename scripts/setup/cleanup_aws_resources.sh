@@ -23,11 +23,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration - read from .env.aws if it exists
-if [ -f ".env.aws" ]; then
-    source .env.aws
+# Configuration - read from .env.cloud if it exists
+if [ -f ".env.cloud" ]; then
+    source .env.cloud
 else
-    echo -e "${YELLOW}[WARN] .env.aws not found. Using default values.${NC}"
+    echo -e "${YELLOW}[WARN] .env.cloud not found. Using default values.${NC}"
     REGION="${AWS_DEFAULT_REGION:-us-east-1}"
     S3_BUCKET="${S3_BUCKET:-}"
     ROLE_NAME="${IAM_ROLE:-cs627-ec2-role}"
@@ -235,17 +235,17 @@ else
     echo -e "${YELLOW}[SKIP] Security group not found${NC}"
 fi
 
-# Remove .env.aws file
-if [ -f ".env.aws" ] && [ "$FORCE" = false ]; then
-    read -p "Remove .env.aws configuration file? (y/N) " -n 1 -r
+# Remove .env.cloud file
+if [ -f ".env.cloud" ] && [ "$FORCE" = false ]; then
+    read -p "Remove .env.cloud configuration file? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm .env.aws
-        echo -e "${GREEN}[OK] .env.aws removed${NC}"
+        rm .env.cloud
+        echo -e "${GREEN}[OK] .env.cloud removed${NC}"
     fi
-elif [ -f ".env.aws" ] && [ "$FORCE" = true ]; then
-    rm .env.aws
-    echo -e "${GREEN}[OK] .env.aws removed${NC}"
+elif [ -f ".env.cloud" ] && [ "$FORCE" = true ]; then
+    rm .env.cloud
+    echo -e "${GREEN}[OK] .env.cloud removed${NC}"
 fi
 
 # Summary

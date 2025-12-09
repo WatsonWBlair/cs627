@@ -5,7 +5,6 @@ Organized by source modality:
 - text/: Text encoders (semantic features)
 - audio/: Audio encoders (waveform, tone, etc.)
 - image/: Image encoders (visual features)
-- video/: Video encoders (motion, temporal features)
 
 Backward-compatible imports for legacy code.
 """

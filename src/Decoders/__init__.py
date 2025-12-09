@@ -5,7 +5,6 @@ Organized by target modality:
 - text/: Text decoders (semantic to text)
 - audio/: Audio decoders (vector to waveform, etc.)
 - image/: Image decoders (vector to visual)
-- video/: Video decoders (vector to motion, etc.)
 
 Backward-compatible imports for legacy code.
 """
