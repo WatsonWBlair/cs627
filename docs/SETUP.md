@@ -47,10 +47,11 @@ cd cs627
 # Quick automated setup
 ./quickstart.sh
 
-# Or manual setup
-make setup
-make tokens
-make train
+# Or manual setup with invoke
+pip install invoke
+inv setup
+inv tokens
+inv train
 ```
 
 ### Windows
@@ -81,16 +82,12 @@ cd cs627
 ```
 
 #### 3. Run Setup
-```batch
-# Windows Command Prompt or PowerShell
-make.bat setup
-make.bat tokens
-make.bat train
-
-# Or in WSL2/Git Bash
-make setup
-make tokens
-make train
+```bash
+# All platforms (Windows, macOS, Linux)
+pip install invoke
+inv setup
+inv tokens
+inv train
 ```
 
 ### Linux (Ubuntu/Debian)
@@ -122,9 +119,10 @@ cd cs627
 
 #### 3. Run Setup
 ```bash
-make setup
-make tokens
-make train
+pip install invoke
+inv setup
+inv tokens
+inv train
 ```
 
 ## Installation Methods
@@ -136,12 +134,12 @@ make train
 docker pull watsonwb/cs627-svs:latest
 
 # Or build locally
-make docker-build
+inv docker-build
 
 # Run training pipeline
-make tokens    # Generate tokens (30 min)
-make train     # Train adapters (15 min)
-make evaluate  # Run evaluation
+inv tokens    # Generate tokens (30 min)
+inv train     # Train adapters (15 min)
+inv evaluate  # Run evaluation
 ```
 
 ### Method 2: Local Installation
@@ -176,10 +174,9 @@ python -c "from src.Training.Data_Wrangling.mosi_dataset import download_mosi; d
 
 ```bash
 # Automatic download
-make download-data
+inv download-data
 
 # Or manual download
-python scripts/data_wrangling/download_test_videos.py
 python scripts/data_wrangling/extract_test_segments.py
 ```
 
@@ -187,7 +184,7 @@ python scripts/data_wrangling/extract_test_segments.py
 
 ```bash
 # Generate all tokens (~30 minutes on GPU)
-make tokens
+inv tokens
 
 # Or with custom batch size
 BATCH_SIZE=16 python src/Training/pregenerate_tokens.py
@@ -203,7 +200,7 @@ Token files will be created in `data/pregenerated_tokens/mosi/`:
 ### Test Installation
 ```bash
 # Run smoke tests
-make test
+inv test
 
 # Or run Python test
 python -c "
@@ -238,8 +235,11 @@ cd CMU-MultimodalSDK && pip install .
 #### "CUDA out of memory"
 ```bash
 # Reduce batch size
-BATCH_SIZE=8 make tokens
-BATCH_SIZE=64 make train
+BATCH_SIZE=8 inv tokens
+BATCH_SIZE=64 inv train
+
+# Or use local training with custom batch size
+BATCH_SIZE=8 python src/Training/pregenerate_tokens.py
 ```
 
 #### "Docker: permission denied"
@@ -247,13 +247,6 @@ BATCH_SIZE=64 make train
 # Add user to docker group (Linux)
 sudo usermod -aG docker $USER
 newgrp docker
-```
-
-#### "make: command not found" (Windows)
-```bash
-# Use make.bat instead
-make.bat setup
-make.bat tokens
 ```
 
 #### PyTorch Installation Issues
@@ -281,9 +274,9 @@ MOSI_DATA_PATH=data/cmumosi/mosi/
 
 ## Next Steps
 
-1. **Generate tokens**: `make tokens` (one-time, ~30 min)
-2. **Train adapters**: `make train` (fast, ~15 min)
-3. **Run evaluation**: `make evaluate`
-4. **Ablation studies**: `python cli.py ablation`
+1. **Generate tokens**: `inv tokens` (one-time, ~30 min)
+2. **Train adapters**: `inv train` (fast, ~15 min)
+3. **Run evaluation**: `inv evaluate`
+4. **Ablation studies**: `inv ablation --local`
 
 See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed training instructions.

@@ -37,16 +37,13 @@ print(f'Success! Shape: {result.shape}')
 "
 ```
 
-### Option 3: Make Commands
+### Option 3: Invoke Commands (Cross-Platform)
 
 ```bash
-# macOS/Linux
-make setup
-make test
-
-# Windows
-make.bat setup
-make.bat test
+pip install invoke
+inv setup
+inv test
+inv --list  # Show all commands
 ```
 
 ## Platform-Specific Quick Start
@@ -68,8 +65,9 @@ cd cs627
 # In PowerShell/Command Prompt
 git clone https://github.com/WatsonWBlair/cs627.git
 cd cs627
-make.bat setup
-make.bat test
+pip install invoke
+inv setup
+inv test
 ```
 
 ### Linux
@@ -128,27 +126,30 @@ python src/Training/train_adapters.py --mode encoder --epochs 3
 ### Full Setup
 ```bash
 # Install all dependencies
-make setup
+inv setup
 
 # Download real data (30 min)
-make download-data
+inv download-data
 
 # Generate real tokens (30 min)
-make tokens
+inv tokens
 
 # Train on real data (15 min)
-make train
+inv train
 ```
 
 ### Explore Features
 ```bash
 # Launch Jupyter environment
-make dev
+inv dev
 
 # Run CLI commands
 python cli.py --help
 python cli.py status
 python cli.py pipeline
+
+# List all available tasks
+inv --list
 ```
 
 ### Read Documentation
@@ -183,4 +184,4 @@ chmod +x docker/*.sh
 
 - **Issues**: [GitHub Issues](https://github.com/WatsonWBlair/cs627/issues)
 - **Documentation**: [Full Docs](../README.md)
-- **Quick Test**: `make test`
+- **Quick Test**: `inv test`

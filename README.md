@@ -16,29 +16,31 @@ CS627 AI Research Project - Aligning text, audio, and image modalities to a shar
 ./scripts/setup/quickstart.sh  # Installs dependencies, runs mini training demo
 ```
 
-### Option 2: Docker (Recommended)
+### Option 2: Using Invoke (Cross-Platform)
 ```bash
-# Using Make commands
-make setup          # Install dependencies
-make tokens         # Generate encoder tokens (one-time, ~30 min)
-make train          # Train adapters (fast, ~15 min)
-make evaluate       # Run evaluation
+pip install invoke
+inv setup           # Install dependencies
+inv tokens          # Generate encoder tokens (one-time, ~30 min)
+inv train           # Train adapters (fast, ~15 min)
+inv evaluate        # Run evaluation
+inv --list          # Show all available commands
+```
 
-# Or using Docker directly
+### Option 3: Docker
+```bash
 docker pull watsonwb/cs627-svs:latest
 docker-compose up pregenerate-tokens  # Generate tokens
 docker-compose up train-adapters-gpu  # Train adapters
 ```
 
-### Option 3: Local Installation
+### Option 4: Direct Python
 ```bash
 pip install -r requirements.txt
 python src/Training/pregenerate_tokens.py  # Generate tokens
 python src/Training/train_adapters.py      # Train adapters
 ```
 
-**Windows users**: Use `make.bat` instead of `make`.  
-**Full setup guide**: See [SETUP.md](SETUP.md) for detailed platform-specific instructions.
+**Full setup guide**: See [docs/SETUP.md](docs/SETUP.md) for detailed instructions.
 
 ## Architecture
 
@@ -54,12 +56,12 @@ Raw Input → Frozen Encoder → Tokens → Trainable Adapter → Semantic Vecto
 
 1. **Generate tokens** (one-time, ~30 min):
    ```bash
-   make tokens  # or python src/Training/pregenerate_tokens.py
+   inv tokens  # or python src/Training/pregenerate_tokens.py
    ```
 
 2. **Train adapters** (fast iteration, ~15 min):
    ```bash
-   make train   # or python src/Training/train_adapters.py
+   inv train   # or python src/Training/train_adapters.py
    ```
 
 3. **Run ablation studies** (optional):

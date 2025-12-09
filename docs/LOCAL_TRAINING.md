@@ -111,23 +111,17 @@ python scripts/visualize_ablation.py --results Results/ablation/ablation_results
 | Train decoder adapters | `python src/Training/train_adapters.py --mode decoder` |
 | Run ablation study | `python src/Experiments/run_ablation.py --config recommended` |
 
-### Windows make.bat
+### Invoke Commands (Cross-Platform)
 
 | Task | Command |
 |------|---------|
-| Tokens (no Docker) | `make.bat tokens-local` |
-| Tokens (CPU Docker) | `make.bat tokens-cpu` |
-| Train (no Docker) | `make.bat train-local` |
-| Train (CPU Docker) | `make.bat train-cpu` |
-| Ablation | `make.bat ablation-local` |
-
-### Make Commands (Unix)
-
-| Task | Command |
-|------|---------|
-| Generate tokens | `make tokens` |
-| Train adapters | `make train` |
-| Run evaluation | `make evaluate` |
+| Generate tokens (Docker) | `inv tokens` |
+| Generate tokens (local) | `inv tokens --local` |
+| Train adapters (Docker) | `inv train` |
+| Train adapters (local) | `inv train --local` |
+| Train with CPU Docker | `inv train --cpu` |
+| Ablation study | `inv ablation --local` |
+| List all commands | `inv --list` |
 
 ## Troubleshooting
 
@@ -135,9 +129,8 @@ python scripts/visualize_ablation.py --results Results/ablation/ablation_results
 |-------|----------|
 | `No module named 'mmsdk'` | Install CMU-MultimodalSDK (see [SETUP.md](SETUP.md)) |
 | CUDA out of memory | Reduce `BATCH_SIZE` (8 or 16) |
-| `make` not found (Windows) | Use `make.bat` or direct Python commands |
-| Token files not found | Run `pregenerate_tokens.py` first |
-| Docker GPU not working | Use `-local` commands |
+| Token files not found | Run `inv tokens --local` first |
+| Docker GPU not working | Use `--local` flag |
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for extended solutions.
 

@@ -132,7 +132,7 @@ Complete overview of technologies used in the CS627 Semantic-Vector Space projec
 |------|---------|
 | GitHub Actions | Automated testing and Docker publishing |
 | Docker Buildx | Multi-platform image builds (amd64, arm64) |
-| Makefile | Task automation |
+| Invoke (tasks.py) | Cross-platform task automation |
 
 ## System Requirements
 
