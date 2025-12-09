@@ -56,6 +56,12 @@ ADAPTER_LAYERS = int(os.getenv('ADAPTER_LAYERS', '2'))
 USE_AMP = os.getenv('USE_AMP', '1') == '1'
 GRADIENT_ACCUMULATION = int(os.getenv('GRADIENT_ACCUMULATION', '1'))
 
+# MoCo configuration
+USE_MOCO = os.getenv('USE_MOCO', '1') == '1'
+QUEUE_SIZE = int(os.getenv('QUEUE_SIZE', '4096'))
+MOMENTUM = float(os.getenv('MOMENTUM', '0.999'))
+TEMPERATURE = float(os.getenv('TEMPERATURE', '0.07'))
+
 # Output directories
 OPTIMAL_WEIGHTS_DIR = os.getenv('OPTIMAL_WEIGHTS_DIR', 'OptimalWeights')
 CANDIDATE_WEIGHTS_DIR = os.getenv('CANDIDATE_WEIGHTS_DIR', 'CandidateWeights')
@@ -99,7 +105,11 @@ def train_encoder_adapters(
     adapter_configs: List[AdapterConfig],
     epochs: int = EPOCHS,
     learning_rate: float = LEARNING_RATE,
-    token_dim: int = 1024
+    token_dim: int = 1024,
+    use_moco: bool = USE_MOCO,
+    queue_size: int = QUEUE_SIZE,
+    momentum: float = MOMENTUM,
+    temperature: float = TEMPERATURE
 ) -> Dict:
     """
     Train encoder adapters using contrastive learning.
@@ -111,12 +121,18 @@ def train_encoder_adapters(
         epochs: Number of training epochs
         learning_rate: Learning rate
         token_dim: Dimension of input tokens
+        use_moco: Enable MoCo (momentum adapters + negative queue)
+        queue_size: Size of MoCo negative queue
+        momentum: Momentum coefficient for EMA updates
+        temperature: Temperature for InfoNCE loss
 
     Returns:
         Training history and metrics
     """
     print("\n" + "=" * 80)
     print("Training Encoder Adapters (Contrastive Learning)")
+    if use_moco:
+        print(f"MoCo: queue_size={queue_size}, momentum={momentum}")
     print("=" * 80)
 
     # Create adapters and encoder mapping
@@ -128,15 +144,20 @@ def train_encoder_adapters(
         encoder_mapping[config.name] = config.input_encoder
         print(f"Created adapter: {config.name} ({config.input_encoder} -> semantic, dim={token_dim})")
 
-    # Create trainer
+    # Create trainer with MoCo support
     trainer = AdapterTrainer(
         adapters=adapters,
-        loss_fn=ContrastiveLoss(temperature=0.07),
+        loss_fn=ContrastiveLoss(temperature=temperature),
         learning_rate=learning_rate,
         device=DEVICE,
         use_amp=USE_AMP,
         gradient_accumulation=GRADIENT_ACCUMULATION,
-        encoder_mapping=encoder_mapping
+        encoder_mapping=encoder_mapping,
+        # MoCo parameters
+        use_moco=use_moco,
+        queue_size=queue_size,
+        momentum=momentum,
+        embedding_dim=token_dim
     )
     
     # Training loop
@@ -286,9 +307,18 @@ def main():
                         help='Learning rate')
     parser.add_argument('--token-dir', type=str, default=TOKEN_DIR,
                         help='Directory containing pre-generated tokens')
-    
+    # MoCo arguments
+    parser.add_argument('--use-moco', type=int, default=1 if USE_MOCO else 0,
+                        help='Enable MoCo (1=yes, 0=no)')
+    parser.add_argument('--queue-size', type=int, default=QUEUE_SIZE,
+                        help='MoCo negative queue size')
+    parser.add_argument('--momentum', type=float, default=MOMENTUM,
+                        help='MoCo momentum coefficient (0.999 = slow updates)')
+    parser.add_argument('--temperature', type=float, default=TEMPERATURE,
+                        help='InfoNCE temperature')
+
     args = parser.parse_args()
-    
+
     print("=" * 80)
     print("Adapter Training with Pre-Generated Tokens")
     print("=" * 80)
@@ -300,6 +330,12 @@ def main():
     print(f"Token directory: {args.token_dir}")
     print(f"Mixed precision: {USE_AMP}")
     print(f"Gradient accumulation: {GRADIENT_ACCUMULATION}")
+    if args.mode == 'encoder':
+        print(f"MoCo enabled: {bool(args.use_moco)}")
+        if args.use_moco:
+            print(f"  Queue size: {args.queue_size}")
+            print(f"  Momentum: {args.momentum}")
+            print(f"  Temperature: {args.temperature}")
     print("=" * 80)
     
     # Load token metadata
@@ -354,7 +390,12 @@ def main():
             adapter_configs,
             epochs=args.epochs,
             learning_rate=args.lr,
-            token_dim=token_dim
+            token_dim=token_dim,
+            # MoCo parameters
+            use_moco=bool(args.use_moco),
+            queue_size=args.queue_size,
+            momentum=args.momentum,
+            temperature=args.temperature
         )
         
     else:  # decoder mode
@@ -404,16 +445,27 @@ def main():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     history_path = results_dir / f"{args.mode}_training_{timestamp}.json"
     
+    # Build config dict
+    config = {
+        'batch_size': args.batch_size,
+        'learning_rate': args.lr,
+        'epochs': args.epochs,
+        'adapter_hidden_size': ADAPTER_HIDDEN_SIZE,
+        'adapter_layers': ADAPTER_LAYERS
+    }
+    # Add MoCo config for encoder mode
+    if args.mode == 'encoder':
+        config['moco'] = {
+            'enabled': bool(args.use_moco),
+            'queue_size': args.queue_size,
+            'momentum': args.momentum,
+            'temperature': args.temperature
+        }
+
     with open(history_path, 'w') as f:
         json.dump({
             'mode': args.mode,
-            'config': {
-                'batch_size': args.batch_size,
-                'learning_rate': args.lr,
-                'epochs': args.epochs,
-                'adapter_hidden_size': ADAPTER_HIDDEN_SIZE,
-                'adapter_layers': ADAPTER_LAYERS
-            },
+            'config': config,
             'history': history,
             'timestamp': timestamp
         }, f, indent=2)
