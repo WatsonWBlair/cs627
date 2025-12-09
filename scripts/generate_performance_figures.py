@@ -51,7 +51,7 @@ sys.path.insert(0, str(project_root / 'src'))
 from src.Encoders import Text_to_Vec, Audio_to_Vec, Image_to_Vec
 from src.Decoders import Vec_to_Text
 from src.Training.Data_Wrangling.mosi_dataset import MOSIRawVideoDataset
-from src.Training.train_encoders import collate_fn_raw_video
+from src.Training.pregenerate_tokens import collate_fn_pregeneration as collate_fn_raw_video
 from src.Evaluation import CrossModalEvaluator, compute_cross_modal_metrics
 from src.Evaluation.visualization import (
     plot_retrieval_confusion_matrix,

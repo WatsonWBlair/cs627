@@ -231,26 +231,33 @@ class MOSIRawVideoDataset(Dataset):
             from mmsdk import mmdatasdk
 
             if self.skip_download:
-                # Load from pre-staged CDF files without triggering downloads
-                # CDF = Computational Data Format (CMU-MultimodalSDK format)
-                words_cdf = os.path.join(self.mosi_data_path, 'CMU_MOSI_TimestampedWords.cdf')
-                labels_cdf = os.path.join(self.mosi_data_path, 'CMU_MOSI_Opinion_Labels.cdf')
+                # Load from pre-staged CSD files without triggering downloads
+                # CSD = Computational Sequence Data (CMU-MultimodalSDK format)
+                # Note: Older SDK versions used .cdf extension
+                words_csd = os.path.join(self.mosi_data_path, 'CMU_MOSI_TimestampedWords.csd')
+                labels_csd = os.path.join(self.mosi_data_path, 'CMU_MOSI_Opinion_Labels.csd')
 
-                if not os.path.exists(words_cdf):
+                # Fallback to .cdf for older SDK versions
+                if not os.path.exists(words_csd):
+                    words_csd = os.path.join(self.mosi_data_path, 'CMU_MOSI_TimestampedWords.cdf')
+                    labels_csd = os.path.join(self.mosi_data_path, 'CMU_MOSI_Opinion_Labels.cdf')
+
+                if not os.path.exists(words_csd):
                     raise FileNotFoundError(
-                        f"Pre-staged CDF file not found: {words_cdf}\n"
-                        f"SKIP_DOWNLOAD=1 requires pre-staged data."
+                        f"Pre-staged data file not found: {words_csd}\n"
+                        f"SKIP_DOWNLOAD=1 requires pre-staged data.\n"
+                        f"Run: python -c \"from src.Training.Data_Wrangling.mosi_dataset import download_mosi; download_mosi('data/cmumosi/mosi/')\""
                     )
 
-                # Load directly from local CDF files (mmdataset with local paths only)
+                # Load directly from local CSD files (mmdataset with local paths only)
                 raw_data = mmdatasdk.mmdataset({
-                    'words': words_cdf
+                    'words': words_csd
                 }, self.mosi_data_path)
                 words_seq = raw_data.computational_sequences['words']
 
                 # Load labels
                 highlevel_data = mmdatasdk.mmdataset({
-                    'Opinion Segment Labels': labels_cdf
+                    'Opinion Segment Labels': labels_csd
                 }, self.mosi_data_path)
                 labels_seq = highlevel_data.computational_sequences['Opinion Segment Labels']
             else:

@@ -242,7 +242,7 @@ def main():
     # Process each split
     metadata = {}
     
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'valid', 'test']:
         print(f"\nProcessing {split} split...")
         
         # Load dataset

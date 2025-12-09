@@ -226,7 +226,7 @@ def create_token_dataloader(
     Convenience function to create a DataLoader for token training.
     
     Args:
-        split: Dataset split ('train', 'val', 'test')
+        split: Dataset split ('train', 'valid', 'test')
         token_dir: Directory containing token H5 files
         batch_size: Batch size for training
         shuffle: Whether to shuffle data

@@ -98,32 +98,36 @@ def train_encoder_adapters(
     val_loader: DataLoader,
     adapter_configs: List[AdapterConfig],
     epochs: int = EPOCHS,
-    learning_rate: float = LEARNING_RATE
+    learning_rate: float = LEARNING_RATE,
+    token_dim: int = 1024
 ) -> Dict:
     """
     Train encoder adapters using contrastive learning.
-    
+
     Args:
         train_loader: Training data loader
         val_loader: Validation data loader
         adapter_configs: List of adapter configurations
         epochs: Number of training epochs
         learning_rate: Learning rate
-    
+        token_dim: Dimension of input tokens
+
     Returns:
         Training history and metrics
     """
     print("\n" + "=" * 80)
     print("Training Encoder Adapters (Contrastive Learning)")
     print("=" * 80)
-    
-    # Create adapters
+
+    # Create adapters and encoder mapping
     adapters = {}
+    encoder_mapping = {}
     for config in adapter_configs:
-        adapter = config.create_adapter()
+        adapter = config.create_adapter(input_dim=token_dim, output_dim=token_dim)
         adapters[config.name] = adapter.to(DEVICE)
-        print(f"Created adapter: {config.name} ({config.input_encoder} -> semantic)")
-    
+        encoder_mapping[config.name] = config.input_encoder
+        print(f"Created adapter: {config.name} ({config.input_encoder} -> semantic, dim={token_dim})")
+
     # Create trainer
     trainer = AdapterTrainer(
         adapters=adapters,
@@ -131,7 +135,8 @@ def train_encoder_adapters(
         learning_rate=learning_rate,
         device=DEVICE,
         use_amp=USE_AMP,
-        gradient_accumulation=GRADIENT_ACCUMULATION
+        gradient_accumulation=GRADIENT_ACCUMULATION,
+        encoder_mapping=encoder_mapping
     )
     
     # Training loop
@@ -186,31 +191,33 @@ def train_decoder_adapters(
     val_loader: DataLoader,
     adapter_configs: List[AdapterConfig],
     epochs: int = EPOCHS,
-    learning_rate: float = LEARNING_RATE
+    learning_rate: float = LEARNING_RATE,
+    token_dim: int = 1024
 ) -> Dict:
     """
     Train decoder adapters using reconstruction loss.
-    
+
     Args:
         train_loader: Training data loader
         val_loader: Validation data loader
         adapter_configs: List of adapter configurations
         epochs: Number of training epochs
         learning_rate: Learning rate
-    
+        token_dim: Dimension of input tokens
+
     Returns:
         Training history and metrics
     """
     print("\n" + "=" * 80)
     print("Training Decoder Adapters (Reconstruction)")
     print("=" * 80)
-    
+
     # Create adapters
     adapters = {}
     for config in adapter_configs:
-        adapter = config.create_adapter()
+        adapter = config.create_adapter(input_dim=token_dim, output_dim=token_dim)
         adapters[config.name] = adapter.to(DEVICE)
-        print(f"Created adapter: {config.name} (semantic -> {config.output_encoder})")
+        print(f"Created adapter: {config.name} (semantic -> {config.output_encoder}, dim={token_dim})")
     
     # Create trainer
     trainer = AdapterTrainer(
@@ -300,7 +307,7 @@ def main():
         metadata = load_token_metadata(args.token_dir)
         print(f"\nLoaded token metadata:")
         print(f"  Train samples: {metadata['train']['num_samples']}")
-        print(f"  Val samples: {metadata['val']['num_samples']}")
+        print(f"  Val samples: {metadata['valid']['num_samples']}")
         print(f"  Token dimension: {metadata['train']['token_dim']}")
         print(f"  Available encoders: {', '.join(metadata['train']['encoders'])}")
     except FileNotFoundError as e:
@@ -323,7 +330,7 @@ def main():
         )
         
         val_loader = create_token_dataloader(
-            'val',
+            'valid',
             token_dir=args.token_dir,
             batch_size=args.batch_size,
             shuffle=False,
@@ -340,12 +347,14 @@ def main():
         ]
         
         # Train encoder adapters
+        token_dim = metadata['train']['token_dim']
         history = train_encoder_adapters(
             train_loader,
             val_loader,
             adapter_configs,
             epochs=args.epochs,
-            learning_rate=args.lr
+            learning_rate=args.lr,
+            token_dim=token_dim
         )
         
     else:  # decoder mode
@@ -361,7 +370,7 @@ def main():
         )
         
         val_loader = create_token_dataloader(
-            'val',
+            'valid',
             token_dir=args.token_dir,
             batch_size=args.batch_size,
             shuffle=False,
@@ -378,12 +387,14 @@ def main():
         ]
         
         # Train decoder adapters
+        token_dim = metadata['train']['token_dim']
         history = train_decoder_adapters(
             train_loader,
             val_loader,
             adapter_configs,
             epochs=args.epochs,
-            learning_rate=args.lr
+            learning_rate=args.lr,
+            token_dim=token_dim
         )
     
     # Save training history

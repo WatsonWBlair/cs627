@@ -130,11 +130,12 @@ class AdapterTrainer:
         weight_decay: float = 1e-4,
         device: torch.device = torch.device('cpu'),
         use_amp: bool = False,
-        gradient_accumulation: int = 1
+        gradient_accumulation: int = 1,
+        encoder_mapping: Optional[Dict[str, str]] = None
     ):
         """
         Initialize adapter trainer.
-        
+
         Args:
             adapters: Dictionary of adapter modules
             loss_fn: Loss function (ContrastiveLoss or ReconstructionLoss)
@@ -143,12 +144,15 @@ class AdapterTrainer:
             device: Device for training
             use_amp: Use automatic mixed precision
             gradient_accumulation: Gradient accumulation steps
+            encoder_mapping: Maps adapter name to encoder/token name
         """
         self.adapters = adapters
         self.loss_fn = loss_fn
         self.device = device
-        self.use_amp = use_amp
+        # AMP only works with CUDA - disable on CPU
+        self.use_amp = use_amp and device.type == 'cuda'
         self.gradient_accumulation = gradient_accumulation
+        self.encoder_mapping = encoder_mapping or {}
         
         # Move modules to device
         for adapter in self.adapters.values():
@@ -174,8 +178,8 @@ class AdapterTrainer:
             eta_min=1e-6
         )
         
-        # Mixed precision scaler
-        self.scaler = GradScaler() if use_amp else None
+        # Mixed precision scaler (only when CUDA is available)
+        self.scaler = GradScaler() if self.use_amp else None
     
     def train_epoch(
         self,
@@ -217,25 +221,26 @@ class AdapterTrainer:
                 # Contrastive learning: process each encoder's tokens
                 embeddings = {}
                 for name, adapter in self.adapters.items():
-                    # Find corresponding tokens
-                    encoder_name = name.replace('_adapter', '').replace('adapter', '')
+                    # Find corresponding tokens using encoder_mapping
+                    encoder_name = self.encoder_mapping.get(name, name.replace('_adapter', ''))
                     if encoder_name in tokens:
                         with autocast(enabled=self.use_amp):
                             embeddings[name] = adapter(tokens[encoder_name])
                 
                 # Compute contrastive loss between all pairs
-                loss = 0
-                num_pairs = 0
+                losses = []
                 for name1, emb1 in embeddings.items():
                     positives = [emb2 for name2, emb2 in embeddings.items() if name2 != name1]
                     if positives:
                         with autocast(enabled=self.use_amp):
                             pair_loss = self.loss_fn(emb1, positives)
-                        loss += pair_loss
-                        num_pairs += 1
-                
-                if num_pairs > 0:
-                    loss = loss / num_pairs
+                        losses.append(pair_loss)
+
+                if losses:
+                    loss = torch.stack(losses).mean()
+                else:
+                    # No valid pairs - skip this batch
+                    continue
                 
             else:
                 # Reconstruction learning
@@ -316,24 +321,24 @@ class AdapterTrainer:
                 if isinstance(self.loss_fn, ContrastiveLoss):
                     embeddings = {}
                     for name, adapter in self.adapters.items():
-                        encoder_name = name.replace('_adapter', '').replace('adapter', '')
+                        encoder_name = self.encoder_mapping.get(name, name.replace('_adapter', ''))
                         if encoder_name in tokens:
                             emb = adapter(tokens[encoder_name])
                             embeddings[name] = emb
                             all_embeddings[name].append(emb.cpu())
-                    
+
                     # Compute loss
-                    loss = 0
-                    num_pairs = 0
+                    losses = []
                     for name1, emb1 in embeddings.items():
                         positives = [emb2 for name2, emb2 in embeddings.items() if name2 != name1]
                         if positives:
                             pair_loss = self.loss_fn(emb1, positives)
-                            loss += pair_loss
-                            num_pairs += 1
-                    
-                    if num_pairs > 0:
-                        loss = loss / num_pairs
+                            losses.append(pair_loss)
+
+                    if losses:
+                        loss = torch.stack(losses).mean()
+                    else:
+                        continue
                     
                 else:
                     adapter = list(self.adapters.values())[0]

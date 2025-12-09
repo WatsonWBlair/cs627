@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Token Pre-generation Service
+  # Token Pre-generation Service (GPU)
   pregenerate-tokens:
     image: watsonwb/cs627-svs:gpu
     build:
@@ -26,6 +26,27 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    command: python src/Training/pregenerate_tokens.py
+    restart: "no"
+
+  # Token Pre-generation Service (CPU)
+  pregenerate-tokens-cpu:
+    image: watsonwb/cs627-svs:cpu
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: cs627-pregenerate-cpu
+    environment:
+      - DEVICE=cpu
+      - BATCH_SIZE=${BATCH_SIZE:-16}
+      - OUTPUT_DIR=/workspace/data/pregenerated_tokens
+      - MOSI_DATA_PATH=/workspace/data/cmumosi/mosi/
+      - AUDIO_DIR=/workspace/data/cmumosi/audio/
+      - VIDEO_DIR=/workspace/data/cmumosi/frames/
+    volumes:
+      - ./data:/workspace/data
+      - ./src:/workspace/src
+      - ./OptimalWeights:/workspace/OptimalWeights
     command: python src/Training/pregenerate_tokens.py
     restart: "no"
 

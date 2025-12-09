@@ -55,10 +55,21 @@ class AblationRunner:
         self.token_dir = Path(token_dir)
         self.results_dir = Path(results_dir)
         self.results_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+
+        device_str = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device(device_str)
         print(f"Using device: {self.device}")
-        
+
+        # Load token metadata to get dimensions
+        metadata_path = self.token_dir / 'metadata.json'
+        if metadata_path.exists():
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            self.token_dim = metadata.get('train', {}).get('token_dim', 1024)
+        else:
+            self.token_dim = 1024
+        print(f"Token dimension: {self.token_dim}")
+
         # Load data loaders once
         print("Loading token datasets...")
         self.train_loader = create_token_dataloader(
@@ -71,7 +82,7 @@ class AblationRunner:
         )
         
         self.val_loader = create_token_dataloader(
-            'val',
+            'valid',
             token_dir=str(self.token_dir),
             batch_size=256,
             shuffle=False,
@@ -105,39 +116,43 @@ class AblationRunner:
             'tanh': torch.nn.Tanh
         }
         
+        # Use detected token_dim instead of config defaults
+        input_dim = self.token_dim
+        output_dim = self.token_dim
+
         # Create custom adapter with specified architecture
         class CustomAdapter(Adapter):
-            def __init__(self):
+            def __init__(inner_self):
                 super().__init__(
                     prefix=f"{encoder_name}_{config.get_identifier()}",
-                    input_length=config.input_dim,
-                    output_length=config.output_dim,
+                    input_length=input_dim,
+                    output_length=output_dim,
                     hidden_size=config.hidden_size,
                     hidden_layers=config.num_layers,
                     weights_dir="OptimalWeights"
                 )
-                
+
                 # Rebuild model with custom activation and dropout
                 layers = []
-                
+
                 # Input layer
-                layers.append(torch.nn.Linear(config.input_dim, config.hidden_size))
+                layers.append(torch.nn.Linear(input_dim, config.hidden_size))
                 layers.append(activation_map[config.activation]())
                 if config.dropout > 0:
                     layers.append(torch.nn.Dropout(config.dropout))
-                
+
                 # Hidden layers
                 for _ in range(config.num_layers):
                     layers.append(torch.nn.Linear(config.hidden_size, config.hidden_size))
                     layers.append(activation_map[config.activation]())
                     if config.dropout > 0:
                         layers.append(torch.nn.Dropout(config.dropout))
-                
+
                 # Output layer
-                layers.append(torch.nn.Linear(config.hidden_size, config.output_dim))
-                
-                self.model = torch.nn.Sequential(*layers)
-        
+                layers.append(torch.nn.Linear(config.hidden_size, output_dim))
+
+                inner_self.model = torch.nn.Sequential(*layers)
+
         return CustomAdapter()
     
     def train_single_config(
@@ -166,7 +181,15 @@ class AblationRunner:
             'tone_adapter': self.create_adapter_from_config(config, 'audio_tone'),
             'image_adapter': self.create_adapter_from_config(config, 'image_base')
         }
-        
+
+        # Encoder mapping for the trainer
+        encoder_mapping = {
+            'text_adapter': 'text_base',
+            'audio_adapter': 'audio_waveform',
+            'tone_adapter': 'audio_tone',
+            'image_adapter': 'image_base'
+        }
+
         # Create trainer
         trainer = AdapterTrainer(
             adapters=adapters,
@@ -174,7 +197,8 @@ class AblationRunner:
             learning_rate=learning_rate,
             device=self.device,
             use_amp=True,
-            gradient_accumulation=1
+            gradient_accumulation=1,
+            encoder_mapping=encoder_mapping
         )
         
         # Training history

@@ -21,10 +21,17 @@ echo   make extract-data   Extract audio/video from downloaded data
 echo   make prepare-data   Run full data preparation pipeline
 echo.
 echo Training Pipeline:
-echo   make tokens         Generate encoder tokens (run once)
-echo   make train          Train adapters with pre-generated tokens
-echo   make train-cpu      Train adapters on CPU
-echo   make ablation       Run ablation study
+echo   make tokens         Generate encoder tokens (GPU Docker)
+echo   make tokens-cpu     Generate encoder tokens (CPU Docker)
+echo   make tokens-local   Generate encoder tokens (no Docker)
+echo   make train          Train adapters (GPU Docker)
+echo   make train-cpu      Train adapters (CPU Docker)
+echo   make train-local    Train adapters (no Docker)
+echo   make ablation       Run ablation study (Docker)
+echo   make ablation-local Run ablation study (no Docker)
+echo   make visualize-ablation  Visualize ablation study results
+echo   make visualize-performance  Visualize training performance
+echo   make visualize-decoder  Visualize decoder training results
 echo.
 echo Evaluation ^& Testing:
 echo   make evaluate       Run evaluation on trained models
@@ -105,6 +112,18 @@ docker-compose up pregenerate-tokens
 echo Token generation complete!
 goto end
 
+:tokens-cpu
+echo Generating encoder tokens (CPU)...
+docker-compose up pregenerate-tokens-cpu
+echo Token generation complete!
+goto end
+
+:tokens-local
+echo Generating encoder tokens locally (no Docker)...
+python src/Training/pregenerate_tokens.py
+echo Token generation complete!
+goto end
+
 :train
 echo Training adapters...
 if not exist "data\pregenerated_tokens\mosi\train_tokens.h5" (
@@ -125,6 +144,16 @@ docker-compose up train-adapters-cpu
 echo CPU training complete!
 goto end
 
+:train-local
+echo Training adapters locally (no Docker)...
+if not exist "data\pregenerated_tokens\mosi\train_tokens.h5" (
+    echo No tokens found! Run 'make.bat tokens-local' first.
+    goto end
+)
+python src/Training/train_adapters.py --mode encoder
+echo Training complete!
+goto end
+
 :ablation
 echo Running ablation study...
 if not exist "data\pregenerated_tokens\mosi\train_tokens.h5" (
@@ -133,6 +162,46 @@ if not exist "data\pregenerated_tokens\mosi\train_tokens.h5" (
 )
 docker-compose up ablation-study
 echo Ablation study complete!
+goto end
+
+:ablation-local
+echo Running ablation study locally (no Docker)...
+if not exist "data\pregenerated_tokens\mosi\train_tokens.h5" (
+    echo No tokens found! Run 'make.bat tokens-local' first.
+    goto end
+)
+python src/Experiments/run_ablation.py --config recommended
+echo Ablation study complete!
+goto end
+
+:visualize-ablation
+echo Visualizing ablation study results...
+if not exist "Results\ablation" (
+    echo No ablation results found! Run 'make.bat ablation-local' first.
+    goto end
+)
+python scripts/visualize_ablation.py
+echo Visualization complete! Check Results/ablation/figures/
+goto end
+
+:visualize-performance
+echo Generating performance figures...
+if not exist "OptimalWeights" (
+    echo No trained weights found! Run 'make.bat train-local' first.
+    goto end
+)
+python scripts/generate_performance_figures.py
+echo Visualization complete! Check figures/
+goto end
+
+:visualize-decoder
+echo Generating decoder training figures...
+if not exist "DecoderCheckpoints" (
+    echo No decoder checkpoints found! Train decoders first.
+    goto end
+)
+python scripts/generate_decoder_figures.py
+echo Visualization complete! Check figures/decoders/
 goto end
 
 :evaluate
