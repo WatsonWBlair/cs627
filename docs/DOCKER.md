@@ -139,14 +139,7 @@ docker push watsonwb/cs627-svs:latest
 
 ## Environment Variables
 
-### Default Configuration
-```bash
-DEVICE=cuda                    # cuda or cpu
-BATCH_SIZE=32                  # Token generation
-ADAPTER_BATCH_SIZE=256         # Training
-EPOCHS=50
-LEARNING_RATE=0.001
-```
+See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for the complete reference.
 
 ### Custom Settings
 ```bash
@@ -228,5 +221,5 @@ sudo systemctl restart docker
 ## Next Steps
 
 - [TRAINING_GUIDE.md](TRAINING_GUIDE.md) - Training workflows
-- [AWS_SETUP.md](AWS_SETUP.md) - Cloud deployment
+- [aws/](aws/) - Cloud deployment
 - [SETUP.md](SETUP.md) - Local installation

@@ -2,7 +2,9 @@
 
 Guidelines for evaluating encoders, decoders, and the Semantic-Vector Space architecture.
 
-**Related**: See [BENCHMARKS.md](BENCHMARKS.md) for detailed dataset info and benchmark running instructions.
+**API reference**: See [src/Evaluation/README.md](../src/Evaluation/README.md) for programmatic usage and metrics.
+
+**Benchmarks**: See [BENCHMARKS.md](BENCHMARKS.md) for benchmark datasets and adapters.
 
 ## Evaluation Philosophy
 

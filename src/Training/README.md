@@ -71,22 +71,14 @@ Raw Data → [Frozen Encoders] → Tokens → [Trainable Adapters] → Semantic 
 
 ### Environment Variables
 
-```bash
-# Token Generation
-BATCH_SIZE=32            # Batch size for token generation
-MOSI_DATA_PATH=data/cmumosi/mosi/
-AUDIO_DIR=data/cmumosi/audio/
-VIDEO_DIR=data/cmumosi/frames/
-OUTPUT_DIR=data/pregenerated_tokens/
+See [docs/ENVIRONMENT_VARIABLES.md](../../docs/ENVIRONMENT_VARIABLES.md) for the complete reference.
 
-# Adapter Training
-BATCH_SIZE=256           # Much larger batch size possible
-LEARNING_RATE=0.001      # Learning rate for adapters
-EPOCHS=50                # Number of training epochs
-ADAPTER_HIDDEN_SIZE=512  # Hidden layer size
-ADAPTER_LAYERS=2         # Number of hidden layers
-USE_AMP=1                # Use mixed precision
-GRADIENT_ACCUMULATION=1  # Gradient accumulation steps
+Key variables:
+```bash
+BATCH_SIZE=256           # Training batch size (larger with tokens)
+LEARNING_RATE=0.001      # Optimizer learning rate
+EPOCHS=50                # Training epochs
+USE_AMP=1                # Mixed precision
 ```
 
 ### Training Modes
@@ -205,3 +197,10 @@ The old end-to-end training scripts have been removed in favor of the token-base
 - ~~`decoder_trainer.py`~~ → Replaced by `adapter_trainer.py`
 
 Existing model weights remain compatible for inference.
+
+## Related Documentation
+
+- [docs/TRAINING_GUIDE.md](../../docs/TRAINING_GUIDE.md) - Training concepts, best practices, expected results
+- [docs/LOCAL_TRAINING.md](../../docs/LOCAL_TRAINING.md) - Step-by-step workflow
+- [docs/ENVIRONMENT_VARIABLES.md](../../docs/ENVIRONMENT_VARIABLES.md) - All configuration options
+- [src/Experiments/README.md](../Experiments/README.md) - Ablation study framework

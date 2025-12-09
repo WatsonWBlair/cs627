@@ -131,13 +131,39 @@ src/
 - New modules marked EXPERIMENTAL until validated
 - Device auto-detected: `"cuda" if torch.cuda.is_available() else "cpu"`
 
-## Documentation Links
+## Scripts (`scripts/`)
 
-- [README.md](README.md) - Setup, quick start, architecture
-- [AWS_SETUP.md](AWS_SETUP.md) - Cloud training configuration
-- [EVALUATION.md](EVALUATION.md) - Metrics and evaluation guide
-- [BENCHMARKS.md](BENCHMARKS.md) - Dataset and benchmark details
-- [DOCKER.md](DOCKER.md) - Container setup
-- [src/Training/README.md](src/Training/README.md) - Training details
-- [src/Encoders/README.md](src/Encoders/README.md) - Encoder guide
-- [src/Decoders/README.md](src/Decoders/README.md) - Decoder guide
+```
+scripts/
+├── cloud/              # AWS/cloud utilities
+├── data_wrangling/     # Dataset preprocessing
+├── evaluation/         # Evaluation runners
+├── setup/              # Environment & AWS setup
+├── training/           # Training utilities
+└── visualization/      # Figure generation
+```
+
+## Documentation
+
+### High-Level Guides (`docs/`)
+- [docs/SETUP.md](docs/SETUP.md) - Installation and prerequisites
+- [docs/TechStack.md](docs/TechStack.md) - Complete technology overview
+- [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training concepts and workflow
+- [docs/LOCAL_TRAINING.md](docs/LOCAL_TRAINING.md) - Step-by-step training
+- [docs/EVALUATION.md](docs/EVALUATION.md) - Evaluation philosophy
+- [docs/BENCHMARKS.md](docs/BENCHMARKS.md) - Benchmark overview
+- [docs/DOCKER.md](docs/DOCKER.md) - Container setup
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
+- [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) - All config options
+- [docs/aws/](docs/aws/) - AWS deployment (README, CLI_SETUP, CONSOLE_SETUP)
+
+### Technical Implementation (`src/`)
+- [src/Training/README.md](src/Training/README.md) - Training pipeline details
+- [src/Evaluation/README.md](src/Evaluation/README.md) - Evaluation API
+- [src/Evaluation/benchmarks/README.md](src/Evaluation/benchmarks/README.md) - Benchmark adapters
+- [src/Experiments/README.md](src/Experiments/README.md) - Ablation studies
+- [src/Encoders/README.md](src/Encoders/README.md) - Encoder implementation
+- [src/Decoders/README.md](src/Decoders/README.md) - Decoder implementation
+
+### Script Documentation (`scripts/`)
+- [scripts/data_wrangling/README.md](scripts/data_wrangling/README.md) - Data pipeline scripts

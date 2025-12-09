@@ -270,25 +270,13 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ## Environment Variables
 
-Create `.env` file for custom configuration:
+See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for the complete reference.
 
+Key variables for setup:
 ```bash
-# Hardware
 DEVICE=cuda                    # cuda or cpu
 BATCH_SIZE=32                  # Token generation batch size
-ADAPTER_BATCH_SIZE=256         # Training batch size
-
-# Paths
 MOSI_DATA_PATH=data/cmumosi/mosi/
-AUDIO_DIR=data/cmumosi/audio/
-VIDEO_DIR=data/cmumosi/frames/
-TOKEN_DIR=data/pregenerated_tokens/mosi/
-
-# Training
-EPOCHS=50
-LEARNING_RATE=0.001
-ADAPTER_HIDDEN_SIZE=512
-ADAPTER_LAYERS=2
 ```
 
 ## Next Steps

@@ -2,6 +2,10 @@
 
 Comprehensive evaluation tools for cross-modal encoder alignment to the shared semantic vector space.
 
+**Philosophy & methodology**: See [docs/EVALUATION.md](../../docs/EVALUATION.md) for evaluation concepts and success criteria.
+
+**Benchmarks**: See [benchmarks/README.md](benchmarks/README.md) for MTEB, GLUE, and MultiBench adapters.
+
 ## Overview
 
 This module provides:

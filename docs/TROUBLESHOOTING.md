@@ -111,11 +111,57 @@ RuntimeError: CUDA out of memory during token generation
 # Reduce batch size for generation
 BATCH_SIZE=8 python src/Training/pregenerate_tokens.py
 
-# Use CPU for generation (slower)
+# Use CPU for generation (slower but works)
 CUDA_VISIBLE_DEVICES="" python src/Training/pregenerate_tokens.py
 
-# Process in chunks
-python src/Training/pregenerate_tokens.py --chunk-size 100
+# Or use Docker with proper memory management
+docker-compose up pregenerate-tokens
+```
+
+**Problem**: Segmentation fault during token generation
+```
+Segmentation fault: 11
+```
+
+**Solution**:
+```bash
+# Often caused by PyTorch version issues. Reinstall stable version:
+pip uninstall torch torchvision torchaudio -y
+pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0
+
+# Or run in CPU mode:
+DEVICE=cpu python src/Training/pregenerate_tokens.py
+```
+
+**Problem**: Cannot import encoder modules
+```
+ModuleNotFoundError: No module named 'src.Encoders'
+```
+
+**Solution**:
+```bash
+# Run from project root
+cd /path/to/cs627
+python src/Training/pregenerate_tokens.py
+
+# Or add to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+```
+
+**Pre-requisites check before token generation**:
+```bash
+# 1. Check MOSI data exists
+ls -la data/cmumosi/mosi/
+ls -la data/cmumosi/audio/
+ls -la data/cmumosi/frames/
+
+# 2. Check dependencies
+python -c "import torch; print('PyTorch:', torch.__version__)"
+python -c "import transformers; print('Transformers:', transformers.__version__)"
+python -c "import h5py; print('h5py:', h5py.__version__)"
+
+# 3. Test encoder import
+python -c "from src.Encoders import Text_to_Vec; print('Encoder OK')"
 ```
 
 ## Training Issues

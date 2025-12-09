@@ -13,7 +13,7 @@ CS627 AI Research Project - Aligning text, audio, and image modalities to a shar
 
 ### Option 1: Automated Setup (5 minutes)
 ```bash
-./quickstart.sh  # Installs dependencies, runs mini training demo
+./scripts/setup/quickstart.sh  # Installs dependencies, runs mini training demo
 ```
 
 ### Option 2: Docker (Recommended)
@@ -67,7 +67,7 @@ Raw Input → Frozen Encoder → Tokens → Trainable Adapter → Semantic Vecto
    python cli.py ablation --config recommended
    ```
 
-See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed training instructions.
+See [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) for detailed training instructions.
 
 ## Performance
 
@@ -89,16 +89,20 @@ cs627/
 │   └── Evaluation/        # Metrics and benchmarks
 ├── docker/                # Container helper scripts
 ├── Makefile              # Task automation
-├── cli.py                # Advanced CLI interface
-└── quickstart.sh         # One-command setup
+├── scripts/              # Utility scripts by domain
+├── docs/                 # Documentation
+└── cli.py                # Advanced CLI interface
 ```
 
 ## Documentation
 
-- [SETUP.md](SETUP.md) - Installation and prerequisites
-- [TRAINING_GUIDE.md](TRAINING_GUIDE.md) - Training workflows
-- [DOCKER.md](DOCKER.md) - Container usage
-- [AWS_SETUP.md](AWS_SETUP.md) - Cloud deployment
+- [docs/SETUP.md](docs/SETUP.md) - Installation and prerequisites
+- [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) - Training workflows
+- [docs/LOCAL_TRAINING.md](docs/LOCAL_TRAINING.md) - Step-by-step local training
+- [docs/DOCKER.md](docs/DOCKER.md) - Container usage
+- [docs/aws/](docs/aws/) - AWS cloud deployment
+- [docs/EVALUATION.md](docs/EVALUATION.md) - Evaluation guide
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
 - [CLAUDE.md](CLAUDE.md) - AI assistant guide
 
 ## Citation
