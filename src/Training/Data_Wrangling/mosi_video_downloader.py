@@ -308,6 +308,83 @@ def download_from_split(
     return manifest
 
 
+def retry_failed_downloads(
+    manifest_path: str = 'data/cmumosi/videos/download_manifest.json',
+    output_dir: str = 'data/cmumosi/videos',
+    max_workers: int = 4
+) -> Dict:
+    """
+    Retry downloading videos that previously failed.
+
+    Args:
+        manifest_path: Path to existing manifest file
+        output_dir: Directory to save videos
+        max_workers: Number of parallel download threads
+
+    Returns:
+        Updated manifest dictionary
+    """
+    # Load existing manifest
+    if not os.path.exists(manifest_path):
+        raise FileNotFoundError(f"Manifest not found: {manifest_path}")
+
+    with open(manifest_path, 'r') as f:
+        manifest = json.load(f)
+
+    # Find failed video IDs
+    failed_video_ids = [
+        video_id for video_id, result in manifest['videos'].items()
+        if result['status'] not in ['success', 'already_exists']
+    ]
+
+    if not failed_video_ids:
+        print("No failed downloads to retry!")
+        return manifest
+
+    print(f"\nRetrying {len(failed_video_ids)} failed downloads...")
+    print("=" * 80)
+
+    # Retry downloads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_video = {
+            executor.submit(download_single_video, vid_id, output_dir): vid_id
+            for vid_id in failed_video_ids
+        }
+
+        new_successes = 0
+        with tqdm(total=len(failed_video_ids), desc="Retrying") as pbar:
+            for future in concurrent.futures.as_completed(future_to_video):
+                video_id = future_to_video[future]
+
+                try:
+                    result = future.result()
+                    old_status = manifest['videos'][video_id]['status']
+                    manifest['videos'][video_id] = result
+
+                    if result['status'] in ['success', 'already_exists']:
+                        new_successes += 1
+                        manifest['successful_downloads'] += 1
+                        manifest['failed_downloads'] -= 1
+                        pbar.set_postfix({'recovered': new_successes})
+                except Exception as e:
+                    manifest['videos'][video_id] = {
+                        'video_id': video_id,
+                        'status': 'retry_failed',
+                        'error': str(e)[:200]
+                    }
+
+                pbar.update(1)
+
+    # Save updated manifest
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2)
+
+    print(f"\nRecovered {new_successes} videos")
+    print(f"Updated manifest saved to: {manifest_path}")
+
+    return manifest
+
+
 def main():
     """Main function for CLI usage."""
     import argparse
@@ -320,18 +397,30 @@ def main():
                        help='Output directory for videos')
     parser.add_argument('--workers', type=int, default=4,
                        help='Number of parallel download workers')
+    parser.add_argument('--retry-failed', action='store_true',
+                       help='Retry previously failed downloads from manifest')
 
     args = parser.parse_args()
 
     print("=" * 80)
-    print(f"MOSI Video Downloader - {args.split.upper()} Split")
-    print("=" * 80)
 
-    manifest = download_from_split(
-        split=args.split,
-        output_dir=args.output_dir,
-        max_workers=args.workers
-    )
+    if args.retry_failed:
+        print("MOSI Video Downloader - RETRY FAILED")
+        print("=" * 80)
+        manifest_path = os.path.join(args.output_dir, 'download_manifest.json')
+        manifest = retry_failed_downloads(
+            manifest_path=manifest_path,
+            output_dir=args.output_dir,
+            max_workers=args.workers
+        )
+    else:
+        print(f"MOSI Video Downloader - {args.split.upper()} Split")
+        print("=" * 80)
+        manifest = download_from_split(
+            split=args.split,
+            output_dir=args.output_dir,
+            max_workers=args.workers
+        )
 
     print("\nDownload complete!")
     print(f"Videos saved to: {args.output_dir}")

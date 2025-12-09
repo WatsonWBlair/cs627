@@ -41,11 +41,11 @@ Centralized reference for all environment variables used in the CS627 project.
 | `ADAPTER_HIDDEN_SIZE` | `512` | Adapter MLP hidden units |
 | `ADAPTER_LAYERS` | `2` | Adapter MLP depth |
 
-### Data Loading
+### Data Wrangling
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SKIP_DOWNLOAD` | `1` | Skip automatic downloads (0/1) |
+| `CHECKPOINT_INTERVAL` | `5000` | Samples between checkpoints during data wrangling |
 
 ## AWS Configuration
 
