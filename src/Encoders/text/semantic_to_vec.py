@@ -50,7 +50,8 @@ class Text_to_Vec(torch.nn.Module):
         input_text: Union[str, list[str]],
         *,
         max_length: Optional[int] = None,
-        device: str = DEVICE
+        device: str = DEVICE,
+        pregen: bool = False
     ) -> torch.Tensor:
         """
         Forward pass: tokenize -> encode with BART -> project with adapter
@@ -80,6 +81,10 @@ class Text_to_Vec(torch.nn.Module):
 
         # Pool encoder output (mean pooling over sequence)
         pooled_output = encoder_output.mean(dim=1)  # (batch_size, hidden_dim)
+
+        # Pregeneration Early Exit
+        if(pregen):
+            return pooled_output
 
         # Project to semantic space with adapter
         semantic_vector = self.adapter(pooled_output)
