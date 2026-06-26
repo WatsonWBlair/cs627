@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Dict, List, Optional, Union
@@ -138,20 +138,22 @@ class ContrastiveLoss(nn.Module):
             batch_size = query.shape[0]
             neg_sims = torch.mm(query, query.t()) / self.temperature  # (B, B)
             
-            # Mask out self-similarity
+            # Mask out self-similarity (use -inf for proper softmax behavior)
             mask = torch.eye(batch_size, device=query.device, dtype=torch.bool)
-            neg_sims.masked_fill_(mask, -1e9)
+            neg_sims.masked_fill_(mask, float('-inf'))
         else:
             negatives = F.normalize(negatives, p=2, dim=1)
             neg_sims = torch.mm(query, negatives.t()) / self.temperature  # (B, N)
         
-        # Compute InfoNCE loss
-        # For each query, maximize similarity to positives, minimize to negatives
-        pos_exp = torch.exp(pos_sims).mean(dim=1)  # Average over positives
-        neg_exp = torch.exp(neg_sims).sum(dim=1)  # Sum over negatives
-        
-        loss = -torch.log(pos_exp / (pos_exp + neg_exp)).mean()
-        
+        # Compute InfoNCE loss using numerically stable log-sum-exp
+        # This avoids float16 overflow when queue_size is large
+        pos_mean = pos_sims.mean(dim=1, keepdim=True)  # (B, 1)
+        logits = torch.cat([pos_mean, neg_sims], dim=1)  # (B, 1 + N)
+
+        # Labels: positive is at index 0
+        labels = torch.zeros(logits.shape[0], dtype=torch.long, device=query.device)
+        loss = F.cross_entropy(logits, labels)
+
         return loss
 
 
@@ -300,7 +302,7 @@ class AdapterTrainer:
         )
 
         # Mixed precision scaler (only when CUDA is available)
-        self.scaler = GradScaler() if self.use_amp else None
+        self.scaler = GradScaler('cuda') if self.use_amp else None
 
     @torch.no_grad()
     def _momentum_update(self) -> None:
@@ -381,7 +383,7 @@ class AdapterTrainer:
                     # Find corresponding tokens using encoder_mapping
                     encoder_name = self.encoder_mapping.get(name, name.replace('_adapter', ''))
                     if encoder_name in tokens:
-                        with autocast(enabled=self.use_amp):
+                        with autocast('cuda', enabled=self.use_amp):
                             embeddings[name] = adapter(tokens[encoder_name])
 
                 # MoCo: Get momentum embeddings and queue negatives
@@ -405,7 +407,7 @@ class AdapterTrainer:
                 for name1, emb1 in embeddings.items():
                     positives = [emb2 for name2, emb2 in embeddings.items() if name2 != name1]
                     if positives:
-                        with autocast(enabled=self.use_amp):
+                        with autocast('cuda', enabled=self.use_amp):
                             # Pass queue negatives to loss function
                             pair_loss = self.loss_fn(emb1, positives, queue_negatives)
                         losses.append(pair_loss)
@@ -424,7 +426,7 @@ class AdapterTrainer:
 
             else:
                 # Reconstruction learning (MoCo not applicable)
-                with autocast(enabled=self.use_amp):
+                with autocast('cuda', enabled=self.use_amp):
                     # For simplicity, use first adapter
                     adapter = list(self.adapters.values())[0]
                     predicted = adapter(tokens)

@@ -29,8 +29,6 @@ Centralized reference for all environment variables used in the CS627 project.
 | `VIDEO_DIR` | `data/cmumosi/frames/` | Extracted video frames |
 | `TOKEN_DIR` | `data/pregenerated_tokens/mosi/` | Pre-generated tokens |
 | `OUTPUT_DIR` | `data/pregenerated_tokens/` | Token output directory |
-| `GLUE_DATA_PATH` | `data/glue/` | GLUE dataset files |
-| `MTEB_DATA_PATH` | `data/mteb/` | MTEB dataset files |
 
 ### Training Hyperparameters
 
@@ -41,11 +39,31 @@ Centralized reference for all environment variables used in the CS627 project.
 | `ADAPTER_HIDDEN_SIZE` | `512` | Adapter MLP hidden units |
 | `ADAPTER_LAYERS` | `2` | Adapter MLP depth |
 
-### Data Wrangling
+### MoCo Training
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CHECKPOINT_INTERVAL` | `5000` | Samples between checkpoints during data wrangling |
+| `USE_MOCO` | `1` | Enable MoCo (1=yes, 0=in-batch negatives only) |
+| `QUEUE_SIZE` | `4096` | MoCo memory queue size |
+| `MOMENTUM` | `0.999` | Momentum encoder coefficient (0-1) |
+| `TEMPERATURE` | `0.07` | InfoNCE loss temperature |
+
+### Data Splits
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SKIP_DOWNLOAD` | `1` | Skip SDK downloads (1=assume pre-staged data) |
+| `TRAIN_RATIO` | `0.7` | Training split ratio |
+| `VAL_RATIO` | `0.15` | Validation split ratio (test = 1 - train - val) |
+| `RANDOM_SEED` | `42` | Seed for reproducibility |
+
+### Output Paths
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPTIMAL_WEIGHTS_DIR` | `OptimalWeights` | Production adapter weights |
+| `CANDIDATE_WEIGHTS_DIR` | `CandidateWeights` | Experimental weights |
+| `RESULTS_DIR` | `Results/adapter_training` | Training results output |
 
 ## AWS Configuration
 
